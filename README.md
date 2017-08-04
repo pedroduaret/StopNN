@@ -2,7 +2,7 @@
 
 For the application of the neural network we will be using the [Keras framework](https://keras.io). We will be running it with the [TensorFlow](https://www.tensorflow.org) backend.
 
-The first step is installing these frameworks so they can be used.
+The first step is installing these frameworks (and a few other ones) so they can be used.
 
 We will be working primarily in a virtual environment and we will naturally be using root files for our samples, so it is necessary to install root with python support.
 Do not forget to run the `thisroot.sh` or `thisroot.csh` script (whichever is applicable to your shell) at the start of each session or else the root executables and libraries may not be found.
@@ -53,6 +53,6 @@ function frameworkpython {
 }
 ```
 
-And now I can run the system python within the virtualenv by issuing `frameworkpython` instead of `python`
+At which point I can run the system python within the virtualenv by issuing `frameworkpython` instead of `python`
 
 
