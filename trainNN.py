@@ -25,6 +25,18 @@ sigDataVal["category"] = 1
 bkgDataDev["category"] = 0
 bkgDataVal["category"] = 0
 
+# Calculate event weights
+# The input files already have a branch called weight, which contains the per-event weights
+# These precomputed weights have all scale factors applied. If we desire to not use the scale factors
+# we should compute a new set of weights ourselves. Remember to repeat for all datasets.
+################### Add computation here if wanted #######################################################
+# After computing the weights, the total class has to be normalized.
+sigDataDev.weight = sigDataDev.weight/sigDataDev.weight.sum()
+sigDataVal.weight = sigDataVal.weight/sigDataVal.weight.sum()
+bkgDataDev.weight = bkgDataDev.weight/bkgDataDev.weight.sum()
+bkgDataVal.weight = bkgDataVal.weight/bkgDataVal.weight.sum()
+
+
 data = sigDataDev.copy()
 data = data.append(sigDataVal.copy(), ignore_index=True)
 data = data.append(bkgDataDev.copy(), ignore_index=True)
@@ -64,6 +76,8 @@ XDev = dataDev.ix[:,0:len(trainFeatures)]
 XVal = dataVal.ix[:,0:len(trainFeatures)]
 YDev = np.ravel(dataDev.category)
 YVal = np.ravel(dataVal.category)
+weightDev = np.ravel(dataDev.weight)
+weightVal = np.ravel(dataVal.weight)
 
 print("Fitting the scaler and scaling the input variables")
 scaler = StandardScaler().fit(XDev)
@@ -94,7 +108,7 @@ print XVal.dtype
 print("Starting the training")
 start = time.time()
 model = getDefinedClassifier(len(trainFeatures), 1, compileArgs)
-model.fit(XDev, YDev, validation_data=(XVal,YVal), **trainParams)
+model.fit(XDev, YDev, validation_data=(XVal,YVal,weightVal), sample_weight=weightDev, **trainParams)
 print("Training took ", time.time()-start, " seconds")
 
 name = "myNN"
@@ -134,7 +148,7 @@ sys.exit("Done!")
 # Let's repeat the above, but monitor the evolution of the loss function
 import matplotlib.pyplot as plt
 
-history = model.fit(XDev, YDev, validation_data=(XVal,YVal), **trainParams)
+history = model.fit(XDev, YDev, validation_data=(XVal,YVal,weightVal), sample_weight=weightDev, **trainParams)
 print(history.history.keys())
 
 plt.plot(history.history['acc'])
@@ -167,7 +181,7 @@ kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=seed)
 cvscores = []
 for train, test in kfold.split(XDev, YDev):
   model = getDefinedClassifier(len(trainFeatures), 1, compileArgs)
-  model.fit(XDev[train], YDev[train], validation_data=(XDev[test],YDev[test]), **trainParams)
+  model.fit(XDev[train], YDev[train], validation_data=(XDev[test],YDev[test],weightDev[test]), sample_weight=weightDev[train], **trainParams)
   scores = model.evaluate(XDev[test], YDev[test], verbose=1)
   print("%s: %.2f%%" % (model.metrics_names[1], scores[1]*100))
   cvscores.append(scores[1] * 100)
