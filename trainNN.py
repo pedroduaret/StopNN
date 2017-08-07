@@ -143,8 +143,8 @@ valPredict = model.predict(XVal)
 
 print("Getting scores")
 
-scoreDev = model.evaluate(XDev, YDev, verbose = 1)
-scoreVal = model.evaluate(XVal, YVal, verbose = 1)
+scoreDev = model.evaluate(XDev, YDev, sample_weight=weightDev, verbose = 1)
+scoreVal = model.evaluate(XVal, YVal, sample_weight=weightVal, verbose = 1)
 print ""
 
 print "Dev score:", scoreDev
@@ -194,7 +194,7 @@ cvscores = []
 for train, test in kfold.split(XDev, YDev):
   model = getDefinedClassifier(len(trainFeatures), 1, compileArgs)
   model.fit(XDev[train], YDev[train], validation_data=(XDev[test],YDev[test],weightDev[test]), sample_weight=weightDev[train], **trainParams)
-  scores = model.evaluate(XDev[test], YDev[test], verbose=1)
+  scores = model.evaluate(XDev[test], YDev[test], sample_weight=weightDev[test], verbose=1)
   print("%s: %.2f%%" % (model.metrics_names[1], scores[1]*100))
   cvscores.append(scores[1] * 100)
 print("%.2f%% (+/- %.2f%%)" % (numpy.mean(cvscores), numpy.std(cvscores)))
