@@ -5,7 +5,7 @@ import pandas as pd
 import root_numpy
 from sklearn.externals import joblib
 
-filesToProcess=["Wjets_200to400_test_skimmed", "T2DegStop_300_270_test_skimmed"]
+filesToProcess=["Wjets_200to400_test_skimmed", "Wjets_400to600_test_skimmed", "Wjets_600to800_test_skimmed", "T2DegStop_300_270_test_skimmed"]
 myFeatures = ["Jet1Pt", "Met", "Njet", "LepPt", "LepEta", "LepChg", "HT", "NbLoose"]
 
 model = load_model("myNN.h5")

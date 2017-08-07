@@ -12,13 +12,24 @@ from sklearn.metrics import confusion_matrix, cohen_kappa_score
 loc = "./"
 treeName = "bdttree"
 baseSigName = "T2DegStop_300_270"
-baseBkgName = "Wjets_200to400"
+bkgDatasets = [
+                "Wjets_200to400",
+                "Wjets_400to600",
+                "Wjets_600to800",
+              ]
 
 print "Loading datasets..."
 sigDataDev = pandas.DataFrame(root_numpy.root2array(loc + baseSigName + "_train_skimmed.root", treename=treeName))
 sigDataVal = pandas.DataFrame(root_numpy.root2array(loc + baseSigName + "_test_skimmed.root",  treename=treeName))
-bkgDataDev = pandas.DataFrame(root_numpy.root2array(loc + baseBkgName + "_train_skimmed.root", treename=treeName))
-bkgDataVal = pandas.DataFrame(root_numpy.root2array(loc + baseBkgName + "_test_skimmed.root",  treename=treeName))
+bkgDataDev = None
+bkgDataVal = None
+for bkgName in bkgDatasets:
+  if bkgDataDev == None:
+    bkgDataDev = pandas.DataFrame(root_numpy.root2array(loc + bkgName + "_train_skimmed.root", treename=treeName))
+    bkgDataVal = pandas.DataFrame(root_numpy.root2array(loc + bkgName + "_test_skimmed.root",  treename=treeName))
+  else:
+    bkgDataDev = bkgDataDev.append(pandas.DataFrame(root_numpy.root2array(loc + bkgName + "_train_skimmed.root", treename=treeName)))
+    bkgDataVal = bkgDataVal.append(pandas.DataFrame(root_numpy.root2array(loc + bkgName + "_test_skimmed.root",  treename=treeName)))
 
 sigDataDev["category"] = 1
 sigDataVal["category"] = 1
