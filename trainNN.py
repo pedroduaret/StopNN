@@ -14,8 +14,8 @@ treeName = "bdttree"
 baseSigName = "T2DegStop_300_270"
 bkgDatasets = [
                 "Wjets_200to400",
-#                "Wjets_400to600",
-#                "Wjets_600to800",
+                "Wjets_400to600",
+                "Wjets_600to800",
               ]
 
 myFeatures = ["Jet1Pt", "Met", "Njet", "LepPt", "LepEta", "LepChg", "HT", "NbLoose"]
@@ -40,7 +40,7 @@ sigDataVal = pandas.DataFrame(root_numpy.root2array(
 bkgDataDev = None
 bkgDataVal = None
 for bkgName in bkgDatasets:
-  if bkgDataDev == None:
+  if bkgDataDev is None:
     bkgDataDev = pandas.DataFrame(root_numpy.root2array(
                                                         loc + bkgName + "_train_skimmed.root",
                                                         treename=treeName,
