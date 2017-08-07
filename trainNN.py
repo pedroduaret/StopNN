@@ -14,22 +14,64 @@ treeName = "bdttree"
 baseSigName = "T2DegStop_300_270"
 bkgDatasets = [
                 "Wjets_200to400",
-                "Wjets_400to600",
-                "Wjets_600to800",
+#                "Wjets_400to600",
+#                "Wjets_600to800",
               ]
 
+myFeatures = ["Jet1Pt", "Met", "Njet", "LepPt", "LepEta", "LepChg", "HT", "NbLoose"]
+inputBranches = list(myFeatures)
+inputBranches.append("XS")
+inputBranches.append("weight")
+preselection = "(DPhiJet1Jet2 < 2.5 || Jet2Pt < 60) && (Met > 280) && (HT > 200) && (isTight == 1) && (Jet1Pt > 110)"
+
 print "Loading datasets..."
-sigDataDev = pandas.DataFrame(root_numpy.root2array(loc + baseSigName + "_train_skimmed.root", treename=treeName))
-sigDataVal = pandas.DataFrame(root_numpy.root2array(loc + baseSigName + "_test_skimmed.root",  treename=treeName))
+sigDataDev = pandas.DataFrame(root_numpy.root2array(
+                                                    loc + baseSigName + "_train_skimmed.root",
+                                                    treename=treeName,
+                                                    selection=preselection,
+                                                    branches=inputBranches
+                                                    ))
+sigDataVal = pandas.DataFrame(root_numpy.root2array(
+                                                    loc + baseSigName + "_test_skimmed.root",
+                                                    treename=treeName,
+                                                    selection=preselection,
+                                                    branches=inputBranches
+                                                    ))
 bkgDataDev = None
 bkgDataVal = None
 for bkgName in bkgDatasets:
   if bkgDataDev == None:
-    bkgDataDev = pandas.DataFrame(root_numpy.root2array(loc + bkgName + "_train_skimmed.root", treename=treeName))
-    bkgDataVal = pandas.DataFrame(root_numpy.root2array(loc + bkgName + "_test_skimmed.root",  treename=treeName))
+    bkgDataDev = pandas.DataFrame(root_numpy.root2array(
+                                                        loc + bkgName + "_train_skimmed.root",
+                                                        treename=treeName,
+                                                        selection=preselection,
+                                                        branches=inputBranches
+                                                        ))
+    bkgDataVal = pandas.DataFrame(root_numpy.root2array(
+                                                        loc + bkgName + "_test_skimmed.root",
+                                                        treename=treeName,
+                                                        selection=preselection,
+                                                        branches=inputBranches
+                                                        ))
   else:
-    bkgDataDev = bkgDataDev.append(pandas.DataFrame(root_numpy.root2array(loc + bkgName + "_train_skimmed.root", treename=treeName)))
-    bkgDataVal = bkgDataVal.append(pandas.DataFrame(root_numpy.root2array(loc + bkgName + "_test_skimmed.root",  treename=treeName)))
+    bkgDataDev = bkgDataDev.append(
+                                   pandas.DataFrame(root_numpy.root2array(
+                                                                          loc + bkgName + "_train_skimmed.root",
+                                                                          treename=treeName,
+                                                                          selection=preselection,
+                                                                          branches=inputBranches
+                                                                          )),
+                                   ignore_index=True
+                                   )
+    bkgDataVal = bkgDataVal.append(
+                                   pandas.DataFrame(root_numpy.root2array(
+                                                                          loc + bkgName + "_test_skimmed.root",
+                                                                          treename=treeName,
+                                                                          selection=preselection,
+                                                                          branches=inputBranches
+                                                                          )),
+                                   ignore_index=True
+                                   )
 
 sigDataDev["category"] = 1
 sigDataVal["category"] = 1
@@ -61,7 +103,6 @@ print '    Development (train):', len(bkgDataDev)
 print '    Validation (test):', len(bkgDataVal)
 
 print 'Finding features of interest'
-myFeatures = ["Jet1Pt", "Met", "Njet", "LepPt", "LepEta", "LepChg", "HT", "NbLoose"]
 trainFeatures = [var for var in data.columns if var in myFeatures]
 otherFeatures = [var for var in data.columns if var not in trainFeatures]
 
@@ -101,7 +142,7 @@ joblib.dump(scaler, scalerfile)
 
 
 compileArgs = {'loss': 'binary_crossentropy', 'optimizer': 'adam', 'metrics': ["accuracy"]}
-trainParams = {'epochs': 4, 'batch_size': 20, 'verbose': 1}
+trainParams = {'epochs': 40, 'batch_size': 40, 'verbose': 1}
 
 def getDefinedClassifier(nIn, nOut, compileArgs):
   model = Sequential()
