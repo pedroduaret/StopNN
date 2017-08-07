@@ -57,6 +57,7 @@ otherFeatures = [var for var in data.columns if var not in trainFeatures]
 print "Filtering the features of interest"
 tmpList = list(trainFeatures) # To create a real copy
 tmpList.append("category") # Add to tmpList any columns that really are needed, for whatever reason
+tmpList.append("weight")
 data = data[tmpList]
 
 dataDev = sigDataDev[tmpList].copy()
