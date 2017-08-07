@@ -21,7 +21,8 @@ int skimmer(std::string fileToProcess)
   TTree* tmp = inTree->CloneTree(75000);
   tmp->SetBranchStatus("*", 1);
   tmp->SetBranchStatus("weight", 0);
-  TTree* outTree = tmp.CloneTree();
+  TTree* outTree = tmp->CloneTree();
+  tmp->SetBranchStatus("weight", 1);
 
   Float_t weight = 0;
   tmp->SetBranchAddress("weight", &weight);
@@ -35,6 +36,7 @@ int skimmer(std::string fileToProcess)
     factor = inEvents;
     factor = factor / copyEvents;
   }
+  std::cout << "The scaling factor is: " << factor << std::endl;
 
   for(Long64_t i = 0; i < copyEvents; ++i)
   {
