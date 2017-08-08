@@ -78,6 +78,10 @@ sigDataDev["category"] = 1
 sigDataVal["category"] = 1
 bkgDataDev["category"] = 0
 bkgDataVal["category"] = 0
+sigDataDev["sampleWeight"] = 1
+sigDataVal["sampleWeight"] = 1
+bkgDataDev["sampleWeight"] = 1
+bkgDataVal["sampleWeight"] = 1
 
 # Calculate event weights
 # The input files already have a branch called weight, which contains the per-event weights
@@ -85,10 +89,10 @@ bkgDataVal["category"] = 0
 # we should compute a new set of weights ourselves. Remember to repeat for all datasets.
 ################### Add computation here if wanted #######################################################
 # After computing the weights, the total class has to be normalized.
-sigDataDev.weight = sigDataDev.weight/sigDataDev.weight.sum()
-sigDataVal.weight = sigDataVal.weight/sigDataVal.weight.sum()
-bkgDataDev.weight = bkgDataDev.weight/bkgDataDev.weight.sum()
-bkgDataVal.weight = bkgDataVal.weight/bkgDataVal.weight.sum()
+sigDataDev.sampleWeight = sigDataDev.weight/sigDataDev.weight.sum()
+sigDataVal.sampleWeight = sigDataVal.weight/sigDataVal.weight.sum()
+bkgDataDev.sampleWeight = bkgDataDev.weight/bkgDataDev.weight.sum()
+bkgDataVal.sampleWeight = bkgDataVal.weight/bkgDataVal.weight.sum()
 
 
 data = sigDataDev.copy()
@@ -111,6 +115,7 @@ print "Filtering the features of interest"
 tmpList = list(trainFeatures) # To create a real copy
 tmpList.append("category") # Add to tmpList any columns that really are needed, for whatever reason
 tmpList.append("weight")
+tmpList.append("sampleWeight")
 data = data[tmpList]
 
 dataDev = sigDataDev[tmpList].copy()
@@ -130,8 +135,8 @@ XDev = dataDev.ix[:,0:len(trainFeatures)]
 XVal = dataVal.ix[:,0:len(trainFeatures)]
 YDev = np.ravel(dataDev.category)
 YVal = np.ravel(dataVal.category)
-weightDev = np.ravel(dataDev.weight)
-weightVal = np.ravel(dataVal.weight)
+weightDev = np.ravel(dataDev.sampleWeight)
+weightVal = np.ravel(dataVal.sampleWeight)
 
 print("Fitting the scaler and scaling the input variables")
 scaler = StandardScaler().fit(XDev)
