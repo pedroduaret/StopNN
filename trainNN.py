@@ -269,7 +269,7 @@ def FullFOM(sIn, bIn, fValue=0.2):
   b, bErr = bIn
   fomErr = 0.0 # Add the computation of the uncertainty later
   fomA = 2*(s+b)*log(((s+b)*(b + (fValue*b)**2))/(b**2 + (s + b) * (fValue*b)**2))
-  fomB = (log(1 + (s*b*b*fValue*fValue)/(b*(b+(fValue*b)**2)))/(fValue**2))
+  fomB = log(1 + (s*b*b*fValue*fValue)/(b*(b+(fValue*b)**2)))/(fValue**2)
   fom = (fomA - fomB)**0.5
   return (fom, fomErr)
 
