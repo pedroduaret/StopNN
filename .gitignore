@@ -3,3 +3,4 @@ keras-tf/*
 *.so
 *.pcm
 *.root
+*.h5
