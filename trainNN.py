@@ -9,13 +9,29 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout
 from sklearn.metrics import confusion_matrix, cohen_kappa_score
 
-loc = "./"
+loc = "/home/diogo/LIP/DATA"
 treeName = "bdttree"
 baseSigName = "T2DegStop_300_270"
 bkgDatasets = [
+                "Wjets_70to100",
+                "Wjets_100to200",
                 "Wjets_200to400",
                 "Wjets_400to600",
                 "Wjets_600to800",
+                "Wjets_800to1200",
+                "Wjets_1200to2500",
+                "Wjets_2500toInf",
+                "TTJets_DiLepton",
+                "TTJets_SingleLeptonFromTbar",
+                "TTJets_SingleLeptonFromT",
+                "ZJetsToNuNu_HT100to200",
+                "ZJetsToNuNu_HT200to400",
+                "ZJetsToNuNu_HT400to600",
+                "ZJetsToNuNu_HT600to800",
+                "ZJetsToNuNu_HT800to1200",
+                "ZJetsToNuNu_HT1200to2500",
+                "ZJetsToNuNu_HT2500toInf"
+
               ]
 
 myFeatures = ["Jet1Pt", "Met", "Njet", "LepPt", "LepEta", "LepChg", "HT", "NbLoose"]
@@ -148,7 +164,7 @@ joblib.dump(scaler, scalerfile)
 
 
 compileArgs = {'loss': 'binary_crossentropy', 'optimizer': 'adam', 'metrics': ["accuracy"]}
-trainParams = {'epochs': 40, 'batch_size': 40, 'verbose': 1}
+trainParams = {'epochs': 1, 'batch_size': 40, 'verbose': 1}
 
 def getDefinedClassifier(nIn, nOut, compileArgs):
   model = Sequential()
@@ -202,27 +218,34 @@ print cohen_kappa_score(YVal, valPredict.round())
 
 print "Calculating FOM:"
 dataVal["NN"] = valPredict
-selectedValIdx = (dataVal.NN>0.5)
-selectedVal = dataVal[selectedValIdx]
 
-selectedSigIdx = (selectedVal.category == 1)
-selectedBkgIdx = (selectedVal.category == 0)
-selectedSig = selectedVal[selectedSigIdx]
-selectedBkg = selectedVal[selectedBkgIdx]
+def getYields(dataVal, cut=0.5, luminosity=35866, splitFactor=2):
+  selectedValIdx = (dataVal.NN>cut)
+  selectedVal = dataVal[selectedValIdx]
 
-sigYield = selectedSig.weight.sum()
-sigYieldUnc = np.sqrt(np.sum(np.square(selectedSig.weight)))
-bkgYield = selectedBkg.weight.sum()
-bkgYieldUnc = np.sqrt(np.sum(np.square(selectedBkg.weight)))
+  selectedSigIdx = (selectedVal.category == 1)
+  selectedBkgIdx = (selectedVal.category == 0)
+  selectedSig = selectedVal[selectedSigIdx]
+  selectedBkg = selectedVal[selectedBkgIdx]
 
-integratedLuminosity = 10000
-sigYield = sigYield * integratedLuminosity * 2 # The factor 2 comes from the splitting
-sigYieldUnc = sigYieldUnc * integratedLuminosity * 2
-bkgYield = bkgYield * integratedLuminosity * 2
-bkgYieldUnc = bkgYieldUnc * integratedLuminosity * 2
+  sigYield = selectedSig.weight.sum()
+  sigYieldUnc = np.sqrt(np.sum(np.square(selectedSig.weight)))
+  bkgYield = selectedBkg.weight.sum()
+  bkgYieldUnc = np.sqrt(np.sum(np.square(selectedBkg.weight)))
 
-print "Signal@Presel:", sigDataVal.weight.sum() * integratedLuminosity * 2
-print "Background@Presel:", bkgDataVal.weight.sum() * integratedLuminosity * 2
+  sigYield = sigYield * luminosity * splitFactor # The factor 2 comes from the splitting
+  sigYieldUnc = sigYieldUnc * luminosity * splitFactor
+  bkgYield = bkgYield * luminosity * splitFactor
+  bkgYieldUnc = bkgYieldUnc * luminosity * splitFactor
+
+  return ((sigYield, sigYieldUnc), (bkgYield, bkgYieldUnc))
+
+tmpSig, tmpBkg = getYields(dataVal)
+sigYield, sigYieldUnc = tmpSig
+bkgYield, bkgYieldUnc = tmpBkg
+
+print "Signal@Presel:", sigDataVal.weight.sum() * 35866 * 2
+print "Background@Presel:", bkgDataVal.weight.sum() * 35866 * 2
 print "Signal:", sigYield, "+-", sigYieldUnc
 print "Background:", bkgYield, "+-", bkgYieldUnc
 
@@ -245,8 +268,8 @@ def FullFOM(sIn, bIn, fValue=0.2):
   s, sErr = sIn
   b, bErr = bIn
   fomErr = 0.0 # Add the computation of the uncertainty later
-  fomA = 2*(s+b)*log(((s+b)*(b + (fValue*b)**2))/(b**2 + (s + b) + (fValue*b)**2))
-  fomB = log(1 + (s*b*b*fValue*fValue)/(b*(b+(fValue*b)**2)))/(fValue**2)
+  fomA = 2*(s+b)*log(((s+b)*(b + (fValue*b)**2))/(b**2 + (s + b) * (fValue*b)**2))
+  fomB = (log(1 + (s*b*b*fValue*fValue)/(b*(b+(fValue*b)**2)))/(fValue**2))
   fom = (fomA - fomB)**0.5
   return (fom, fomErr)
 
@@ -280,6 +303,24 @@ plt.ylabel('loss')
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
 plt.show()
+
+fomEvo = []
+fomCut = []
+for cut in np.arange(0.0, 0.9999999, 0.001):
+  sig, bkg = getYields(dataVal, cut=cut)
+  if sig[0] > 0 and bkg[0] > 0:
+    fom, fomUnc = FullFOM(sig, bkg)
+    fomEvo.append(fom)
+    fomCut.append(cut)
+
+plt.plot(fomCut, fomEvo)
+plt.title("FOM")
+plt.ylabel("FOM")
+plt.xlabel("ND")
+plt.legend(['test'], loc='upper left')
+plt.show()
+
+#print fomEvo
 
 sys.exit("Done!")
 
