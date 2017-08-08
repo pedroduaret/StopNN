@@ -167,7 +167,7 @@ print XVal.dtype
 print("Starting the training")
 start = time.time()
 model = getDefinedClassifier(len(trainFeatures), 1, compileArgs)
-model.fit(XDev, YDev, validation_data=(XVal,YVal,weightVal), sample_weight=weightDev, **trainParams)
+history = model.fit(XDev, YDev, validation_data=(XVal,YVal,weightVal), sample_weight=weightDev, **trainParams)
 print("Training took ", time.time()-start, " seconds")
 
 name = "myNN"
@@ -199,15 +199,70 @@ print "Val score:", scoreVal
 print confusion_matrix(YVal, valPredict.round())
 print cohen_kappa_score(YVal, valPredict.round())
 
+
+print "Calculating FOM:"
+dataVal["NN"] = valPredict
+selectedValIdx = (dataVal.NN>0.5)
+selectedVal = dataVal[selectedValIdx]
+
+selectedSigIdx = (selectedVal.category == 1)
+selectedBkgIdx = (selectedVal.category == 0)
+selectedSig = selectedVal[selectedSigIdx]
+selectedBkg = selectedVal[selectedBkgIdx]
+
+sigYield = selectedSig.weight.sum()
+sigYieldUnc = np.sqrt(np.sum(np.square(selectedSig.weight)))
+bkgYield = selectedBkg.weight.sum()
+bkgYieldUnc = np.sqrt(np.sum(np.square(selectedBkg.weight)))
+
+integratedLuminosity = 10000
+sigYield = sigYield * integratedLuminosity * 2 # The factor 2 comes from the splitting
+sigYieldUnc = sigYieldUnc * integratedLuminosity * 2
+bkgYield = bkgYield * integratedLuminosity * 2
+bkgYieldUnc = bkgYieldUnc * integratedLuminosity * 2
+
+print "Signal@Presel:", sigDataVal.weight.sum() * integratedLuminosity * 2
+print "Background@Presel:", bkgDataVal.weight.sum() * integratedLuminosity * 2
+print "Signal:", sigYield, "+-", sigYieldUnc
+print "Background:", bkgYield, "+-", bkgYieldUnc
+
+def FOM1(sIn, bIn):
+  s, sErr = sIn
+  b, bErr = bIn
+  fom = s / (b**0.5)
+  fomErr = ((sErr / (b**0.5))**2+(bErr*s / (2*(b)**(1.5)) )**2)**0.5
+  return (fom, fomErr)
+
+def FOM2(sIn, bIn):
+  s, sErr = sIn
+  b, bErr = bIn
+  fom = s / ((s+b)**0.5)
+  fomErr = ((sErr*(2*b + s)/(2*(b + s)**1.5))**2  +  (bErr * s / (2*(b + s)**1.5))**2)**0.5
+  return (fom, fomErr)
+
+def FullFOM(sIn, bIn, fValue=0.2):
+  from math import log
+  s, sErr = sIn
+  b, bErr = bIn
+  fomErr = 0.0 # Add the computation of the uncertainty later
+  fomA = 2*(s+b)*log(((s+b)*(b + (fValue*b)**2))/(b**2 + (s + b) + (fValue*b)**2))
+  fomB = log(1 + (s*b*b*fValue*fValue)/(b*(b+(fValue*b)**2)))/(fValue**2)
+  fom = (fomA - fomB)**0.5
+  return (fom, fomErr)
+
+print "Basic FOM (s/SQRT(b)):", FOM1((sigYield, sigYieldUnc), (bkgYield, bkgYieldUnc))
+print "Basic FOM (s/SQRT(s+b)):", FOM2((sigYield, sigYieldUnc), (bkgYield, bkgYieldUnc))
+print "Full FOM:", FullFOM((sigYield, sigYieldUnc), (bkgYield, bkgYieldUnc))
+
 import sys
-sys.exit("Done!")
+#sys.exit("Done!")
 
 #########################################################
 
 # Let's repeat the above, but monitor the evolution of the loss function
 import matplotlib.pyplot as plt
 
-history = model.fit(XDev, YDev, validation_data=(XVal,YVal,weightVal), sample_weight=weightDev, **trainParams)
+#history = model.fit(XDev, YDev, validation_data=(XVal,YVal,weightVal), sample_weight=weightDev, **trainParams)
 print(history.history.keys())
 
 plt.plot(history.history['acc'])
