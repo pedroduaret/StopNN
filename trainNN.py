@@ -23,16 +23,17 @@ inputBranches = list(myFeatures)
 inputBranches.append("XS")
 inputBranches.append("weight")
 preselection = "(DPhiJet1Jet2 < 2.5 || Jet2Pt < 60) && (Met > 280) && (HT > 200) && (isTight == 1) && (Jet1Pt > 110)"
+suffix = "_skimmed"
 
 print "Loading datasets..."
 sigDataDev = pandas.DataFrame(root_numpy.root2array(
-                                                    loc + baseSigName + "_train_skimmed.root",
+                                                    loc + "/train/" + baseSigName + suffix + ".root",
                                                     treename=treeName,
                                                     selection=preselection,
                                                     branches=inputBranches
                                                     ))
 sigDataVal = pandas.DataFrame(root_numpy.root2array(
-                                                    loc + baseSigName + "_test_skimmed.root",
+                                                    loc + "/test/" + baseSigName + suffix + ".root",
                                                     treename=treeName,
                                                     selection=preselection,
                                                     branches=inputBranches
@@ -42,13 +43,13 @@ bkgDataVal = None
 for bkgName in bkgDatasets:
   if bkgDataDev is None:
     bkgDataDev = pandas.DataFrame(root_numpy.root2array(
-                                                        loc + bkgName + "_train_skimmed.root",
+                                                        loc + "/train/" + bkgName + suffix + ".root",
                                                         treename=treeName,
                                                         selection=preselection,
                                                         branches=inputBranches
                                                         ))
     bkgDataVal = pandas.DataFrame(root_numpy.root2array(
-                                                        loc + bkgName + "_test_skimmed.root",
+                                                        loc + "/test/" + bkgName + suffix + ".root",
                                                         treename=treeName,
                                                         selection=preselection,
                                                         branches=inputBranches
@@ -56,7 +57,7 @@ for bkgName in bkgDatasets:
   else:
     bkgDataDev = bkgDataDev.append(
                                    pandas.DataFrame(root_numpy.root2array(
-                                                                          loc + bkgName + "_train_skimmed.root",
+                                                                          loc + "/train/" + bkgName + suffix + ".root",
                                                                           treename=treeName,
                                                                           selection=preselection,
                                                                           branches=inputBranches
@@ -65,7 +66,7 @@ for bkgName in bkgDatasets:
                                    )
     bkgDataVal = bkgDataVal.append(
                                    pandas.DataFrame(root_numpy.root2array(
-                                                                          loc + bkgName + "_test_skimmed.root",
+                                                                          loc + "/test/" + bkgName + suffix + ".root",
                                                                           treename=treeName,
                                                                           selection=preselection,
                                                                           branches=inputBranches
