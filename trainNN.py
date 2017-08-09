@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import root_numpy
 import numpy as np
 import pandas
@@ -9,7 +11,8 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout
 from sklearn.metrics import confusion_matrix, cohen_kappa_score
 
-loc = "./"
+import localConfig as cfg
+
 treeName = "bdttree"
 baseSigName = "T2DegStop_300_270"
 bkgDatasets = [
@@ -27,13 +30,13 @@ suffix = "_skimmed"
 
 print "Loading datasets..."
 sigDataDev = pandas.DataFrame(root_numpy.root2array(
-                                                    loc + "/train/" + baseSigName + suffix + ".root",
+                                                    cfg.loc + "/train/" + baseSigName + suffix + ".root",
                                                     treename=treeName,
                                                     selection=preselection,
                                                     branches=inputBranches
                                                     ))
 sigDataVal = pandas.DataFrame(root_numpy.root2array(
-                                                    loc + "/test/" + baseSigName + suffix + ".root",
+                                                    cfg.loc + "/test/" + baseSigName + suffix + ".root",
                                                     treename=treeName,
                                                     selection=preselection,
                                                     branches=inputBranches
@@ -43,13 +46,13 @@ bkgDataVal = None
 for bkgName in bkgDatasets:
   if bkgDataDev is None:
     bkgDataDev = pandas.DataFrame(root_numpy.root2array(
-                                                        loc + "/train/" + bkgName + suffix + ".root",
+                                                        cfg.loc + "/train/" + bkgName + suffix + ".root",
                                                         treename=treeName,
                                                         selection=preselection,
                                                         branches=inputBranches
                                                         ))
     bkgDataVal = pandas.DataFrame(root_numpy.root2array(
-                                                        loc + "/test/" + bkgName + suffix + ".root",
+                                                        cfg.loc + "/test/" + bkgName + suffix + ".root",
                                                         treename=treeName,
                                                         selection=preselection,
                                                         branches=inputBranches
@@ -57,7 +60,7 @@ for bkgName in bkgDatasets:
   else:
     bkgDataDev = bkgDataDev.append(
                                    pandas.DataFrame(root_numpy.root2array(
-                                                                          loc + "/train/" + bkgName + suffix + ".root",
+                                                                          cfg.loc + "/train/" + bkgName + suffix + ".root",
                                                                           treename=treeName,
                                                                           selection=preselection,
                                                                           branches=inputBranches
@@ -66,7 +69,7 @@ for bkgName in bkgDatasets:
                                    )
     bkgDataVal = bkgDataVal.append(
                                    pandas.DataFrame(root_numpy.root2array(
-                                                                          loc + "/test/" + bkgName + suffix + ".root",
+                                                                          cfg.loc + "/test/" + bkgName + suffix + ".root",
                                                                           treename=treeName,
                                                                           selection=preselection,
                                                                           branches=inputBranches
