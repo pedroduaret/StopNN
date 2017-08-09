@@ -4,3 +4,4 @@ keras-tf/*
 *.pcm
 *.root
 *.h5
+scaler.sav
