@@ -8,7 +8,8 @@ import time
 from sklearn.externals import joblib
 from sklearn.preprocessing import StandardScaler
 from keras.models import Sequential
-from keras.layers import Dense, Dropout
+from keras.layers import Dense, Dropout, AlphaDropout
+from keras.optimizers import Adam
 from sklearn.metrics import confusion_matrix, cohen_kappa_score
 
 import localConfig as cfg
@@ -151,14 +152,31 @@ joblib.dump(scaler, scalerfile)
 
 
 compileArgs = {'loss': 'binary_crossentropy', 'optimizer': 'adam', 'metrics': ["accuracy"]}
-trainParams = {'epochs': 40, 'batch_size': 40, 'verbose': 1}
+trainParams = {'epochs': 2, 'batch_size': 20, 'verbose': 1}
+learning_rate = 0.001/5.0
+myAdam = Adam(lr=learning_rate)
+compileArgs['optimizer'] = myAdam
 
 def getDefinedClassifier(nIn, nOut, compileArgs):
   model = Sequential()
   model.add(Dense(16, input_dim=nIn, kernel_initializer='he_normal', activation='relu'))
-  #model.add(Dropout(0.5))
+  #model.add(Dropout(0.2))
   model.add(Dense(10, kernel_initializer='he_normal', activation='relu'))
-  #model.add(Dropout(0.5))
+  #model.add(Dropout(0.2))
+  model.add(Dense(nOut, activation="sigmoid", kernel_initializer='glorot_normal'))
+  model.compile(**compileArgs)
+  return model
+
+def getSELUClassifier(nIn, nOut, compileArgs):
+  model = Sequential()
+  model.add(Dense(16, input_dim=nIn, kernel_initializer='he_normal', activation='selu'))
+  model.add(AlphaDropout(0.2))
+  model.add(Dense(32, kernel_initializer='he_normal', activation='selu'))
+  model.add(AlphaDropout(0.2))
+  model.add(Dense(32, kernel_initializer='he_normal', activation='selu'))
+  model.add(AlphaDropout(0.2))
+  model.add(Dense(32, kernel_initializer='he_normal', activation='selu'))
+  model.add(AlphaDropout(0.2))
   model.add(Dense(nOut, activation="sigmoid", kernel_initializer='glorot_normal'))
   model.compile(**compileArgs)
   return model
@@ -170,6 +188,7 @@ print XVal.dtype
 print("Starting the training")
 start = time.time()
 model = getDefinedClassifier(len(trainFeatures), 1, compileArgs)
+#model = getSELUClassifier(len(trainFeatures), 1, compileArgs)
 history = model.fit(XDev, YDev, validation_data=(XVal,YVal,weightVal), sample_weight=weightDev, **trainParams)
 print("Training took ", time.time()-start, " seconds")
 
