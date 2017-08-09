@@ -1,3 +1,3 @@
 #!/usr/bin/env python
 
-loc = "./"
+loc = "/home/diogo/LIP/DATA/"

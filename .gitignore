@@ -4,5 +4,6 @@ keras-tf/*
 *.pcm
 *.root
 *.h5
+*.pyc
 scaler.sav
 localConfig.py
