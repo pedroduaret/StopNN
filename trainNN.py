@@ -240,6 +240,17 @@ print cohen_kappa_score(YVal, valPredict.round())
 
 print "Calculating FOM:"
 dataVal["NN"] = valPredict
+dataDev["NN"] = devPredict
+
+sig_dataValIdx=(dataVal.category==1)
+bkg_dataValIdx=(dataVal.category==0)
+sig_dataDevIdx=(dataVal.category==1)
+bkg_dataDevIdx=(dataVal.category==0)
+
+sig_dataVal=dataVal[sig_dataValIdx]
+bkg_dataVal=dataVal[bkg_dataValIdx]
+sig_dataDev=dataDev[sig_dataDevIdx]
+bkg_dataDev=dataDev[bkg_dataDevIdx]
 
 def getYields(dataVal, cut=0.5, luminosity=35866, splitFactor=2):
   selectedValIdx = (dataVal.NN>cut)
@@ -310,39 +321,101 @@ import matplotlib.pyplot as plt
 #history = model.fit(XDev, YDev, validation_data=(XVal,YVal,weightVal), sample_weight=weightDev, **trainParams)
 print(history.history.keys())
 
+fomEvo = []
+fomCut = []
+
+bkgEff = []
+sigEff = []
+
+luminosity=35866
+sig_Init = sigDataVal.weight.sum() * luminosity * 2;
+bkg_Init = bkgDataVal.weight.sum() * luminosity * 2;
+
+for cut in np.arange(0.0, 0.9999999, 0.001):
+  sig, bkg = getYields(dataVal, cut=cut, luminosity=luminosity)
+  if sig[0] > 0 and bkg[0] > 0:
+    fom, fomUnc = FullFOM(sig, bkg)
+    fomEvo.append(fom)
+    fomCut.append(cut)
+    bkgEff.append(bkg[0]/bkg_Init)
+    sigEff.append(sig[0]/sig_Init)
+
+max_FOM=0
+""""
+for x in fomCut:
+    flag=0
+    for y in fomCut:
+        if abs(x-y)<0.1 and abs(fomEvo[fomCut.index(x)]-fomEvo[fomCut.index(y)])>0.1:
+            flag=1
+        if fomEvo[fomCut.index(x)]>max_FOM and flag==0:
+            max_FOM=fomEvo[fomCut.index(x)]
+"""
+
+print "Maximizing FOM"
+for x in fomEvo:
+    if x>max_FOM:
+        max_FOM=x
+
+
+print "Maximizacao da FOM:", max_FOM , "com corte em: " , fomCut[fomEvo.index(max_FOM)]
+Eff = zip(bkgEff, sigEff)
+
+print "Plotting"
+
+plt.hist(sig_dataDev["NN"], 50, facecolor='blue', alpha=0.5, normed=1, weights=sig_dataDev["weight"])
+plt.hist(bkg_dataDev["NN"], 50, facecolor='red', alpha=0.5, normed=1, weights=bkg_dataDev["weight"])
+plt.hist(sig_dataVal["NN"], 50, facecolor='blue', alpha=1, normed=1, weights=sig_dataVal["weight"], histtype="step")
+plt.hist(bkg_dataVal["NN"], 50, facecolor='red', alpha=1, normed=1, weights=bkg_dataVal["weight"], histtype="step")
+plt.xlabel('NN output')
+plt.title("TMVA overtraining check for classifier: NN")
+plt.legend(['Signal (Dev sample)', 'Background (Dev sample)', 'Signal (Val sample)', 'Background (Val sample)'], loc='upper right')
+plt.show()
+
+both_dataDev=bkg_dataDev["NN"].append(sig_dataDev["NN"])
+plt.hist(bkg_dataDev["NN"], 50, facecolor='red', alpha=1, weights=bkg_dataDev["weight"])
+plt.hist(both_dataDev, 50, facecolor="blue", histtype="step")
+plt.show()
+
+plt.hist(bkg_dataDev["NN"], 50, facecolor='red', alpha=1, weights=bkg_dataDev["weight"])
+plt.hist(both_dataDev, 50, facecolor="blue", histtype="step")
+plt.yscale('log', nonposy='clip')
+plt.show()
+
+plt.subplots_adjust(hspace=0.25)
+plt.subplot(221)
 plt.plot(history.history['acc'])
 plt.plot(history.history['val_acc'])
 plt.title('model accuracy')
 plt.ylabel('accuracy')
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
-plt.show()
 
+plt.subplot(222)
 plt.plot(history.history['loss'])
 plt.plot(history.history['val_loss'])
 plt.title('model loss')
 plt.ylabel('loss')
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
-plt.show()
 
-fomEvo = []
-fomCut = []
-for cut in np.arange(0.0, 0.9999999, 0.001):
-  sig, bkg = getYields(dataVal, cut=cut)
-  if sig[0] > 0 and bkg[0] > 0:
-    fom, fomUnc = FullFOM(sig, bkg)
-    fomEvo.append(fom)
-    fomCut.append(cut)
-
+plt.subplot(223)
 plt.plot(fomCut, fomEvo)
 plt.title("FOM")
 plt.ylabel("FOM")
 plt.xlabel("ND")
-plt.legend(['test'], loc='upper left')
+plt.legend(["Max. FOM: {0}".format(max_FOM)], loc='upper left')
+
+
+plt.subplot(224)
+plt.semilogy(fomCut, Eff)
+plt.axvspan(fomCut[fomEvo.index(max_FOM)], 1, facecolor='#2ca02c', alpha=0.3)
+#plt.axvline(x=fomCut[fomEvo.index(max_FOM)], ymin=0, ymax=1)
+plt.title("Efficiency")
+plt.ylabel("Eff")
+plt.xlabel("ND")
+plt.legend(['Background', 'Signal'], loc='upper left')
 plt.show()
 
-#print fomEvo
 
 sys.exit("Done!")
 
