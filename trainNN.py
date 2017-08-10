@@ -168,7 +168,7 @@ joblib.dump(scaler, scalerfile)
 
 
 compileArgs = {'loss': 'binary_crossentropy', 'optimizer': 'adam', 'metrics': ["accuracy"]}
-trainParams = {'epochs': 2, 'batch_size': 20, 'verbose': 1}
+trainParams = {'epochs': 1, 'batch_size': 20, 'verbose': 1}
 learning_rate = 0.001/5.0
 myAdam = Adam(lr=learning_rate)
 compileArgs['optimizer'] = myAdam
@@ -235,6 +235,7 @@ print ""
 print "Dev score:", scoreDev
 print "Val score:", scoreVal
 print confusion_matrix(YVal, valPredict.round())
+cohen_kappa=cohen_kappa_score(YVal, valPredict.round())
 print cohen_kappa_score(YVal, valPredict.round())
 
 
@@ -341,15 +342,6 @@ for cut in np.arange(0.0, 0.9999999, 0.001):
     sigEff.append(sig[0]/sig_Init)
 
 max_FOM=0
-""""
-for x in fomCut:
-    flag=0
-    for y in fomCut:
-        if abs(x-y)<0.1 and abs(fomEvo[fomCut.index(x)]-fomEvo[fomCut.index(y)])>0.1:
-            flag=1
-        if fomEvo[fomCut.index(x)]>max_FOM and flag==0:
-            max_FOM=fomEvo[fomCut.index(x)]
-"""
 
 print "Maximizing FOM"
 for x in fomEvo:
@@ -357,32 +349,32 @@ for x in fomEvo:
         max_FOM=x
 
 
-print "Maximizacao da FOM:", max_FOM , "com corte em: " , fomCut[fomEvo.index(max_FOM)]
+print "FOM maximization: ", max_FOM , "with cut at: " , fomCut[fomEvo.index(max_FOM)]
 Eff = zip(bkgEff, sigEff)
 
 print "Plotting"
 
-plt.hist(sig_dataDev["NN"], 50, facecolor='blue', alpha=0.5, normed=1, weights=sig_dataDev["weight"])
-plt.hist(bkg_dataDev["NN"], 50, facecolor='red', alpha=0.5, normed=1, weights=bkg_dataDev["weight"])
-plt.hist(sig_dataVal["NN"], 50, facecolor='blue', alpha=1, normed=1, weights=sig_dataVal["weight"], histtype="step")
-plt.hist(bkg_dataVal["NN"], 50, facecolor='red', alpha=1, normed=1, weights=bkg_dataVal["weight"], histtype="step")
+plt.hist(sig_dataDev["NN"], 50, facecolor='blue', alpha=0.7, normed=1, weights=sig_dataDev["weight"])
+plt.hist(bkg_dataDev["NN"], 50, facecolor='red', alpha=0.7, normed=1, weights=bkg_dataDev["weight"])
+plt.hist(sig_dataVal["NN"], 50, color='blue', alpha=1, normed=1, weights=sig_dataVal["weight"], histtype="step")
+plt.hist(bkg_dataVal["NN"], 50, color='red', alpha=1, normed=1, weights=bkg_dataVal["weight"], histtype="step")
 plt.xlabel('NN output')
-plt.title("TMVA overtraining check for classifier: NN")
-plt.legend(['Signal (Dev sample)', 'Background (Dev sample)', 'Signal (Val sample)', 'Background (Val sample)'], loc='upper right')
+plt.title("Cohen's kapa: {0}".format(cohen_kappa), fontsize=10)
+plt.suptitle("MVA overtraining check for classifier: NN", fontsize=13)
+plt.legend(['Signal (Test sample)', 'Background (Test sample)', 'Signal (Train sample)', 'Background (Train sample)'], loc='upper right')
 plt.show()
 
-both_dataDev=bkg_dataDev["NN"].append(sig_dataDev["NN"])
-plt.hist(bkg_dataDev["NN"], 50, facecolor='red', alpha=1, weights=bkg_dataDev["weight"])
-plt.hist(both_dataDev, 50, facecolor="blue", histtype="step")
-plt.show()
-
-plt.hist(bkg_dataDev["NN"], 50, facecolor='red', alpha=1, weights=bkg_dataDev["weight"])
-plt.hist(both_dataDev, 50, facecolor="blue", histtype="step")
-plt.yscale('log', nonposy='clip')
+both_dataDev=bkg_dataDev.append(sig_dataDev)
+plt.xlabel('NN output')
+plt.title("Number of Events")
+#plt.yscale('log', nonposy='clip')
+plt.legend(['Background + Signal (test sample)', 'Background (test sample)'], loc="upper left" )
+plt.hist(bkg_dataDev["NN"], 50, facecolor='red', weights=bkg_dataDev["weight"])
+plt.hist(both_dataDev["NN"], 50, color="blue", histtype="step", weights=both_dataDev["weight"])
 plt.show()
 
 plt.subplots_adjust(hspace=0.25)
-plt.subplot(221)
+plt.subplot(121)
 plt.plot(history.history['acc'])
 plt.plot(history.history['val_acc'])
 plt.title('model accuracy')
@@ -390,15 +382,17 @@ plt.ylabel('accuracy')
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
 
-plt.subplot(222)
+plt.subplot(122)
 plt.plot(history.history['loss'])
 plt.plot(history.history['val_loss'])
 plt.title('model loss')
 plt.ylabel('loss')
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
+plt.show()
 
-plt.subplot(223)
+plt.subplots_adjust(hspace=0.25)
+plt.subplot(121)
 plt.plot(fomCut, fomEvo)
 plt.title("FOM")
 plt.ylabel("FOM")
@@ -406,7 +400,7 @@ plt.xlabel("ND")
 plt.legend(["Max. FOM: {0}".format(max_FOM)], loc='upper left')
 
 
-plt.subplot(224)
+plt.subplot(122)
 plt.semilogy(fomCut, Eff)
 plt.axvspan(fomCut[fomEvo.index(max_FOM)], 1, facecolor='#2ca02c', alpha=0.3)
 #plt.axvline(x=fomCut[fomEvo.index(max_FOM)], ymin=0, ymax=1)
