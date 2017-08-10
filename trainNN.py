@@ -11,8 +11,12 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, AlphaDropout
 from keras.optimizers import Adam
 from sklearn.metrics import confusion_matrix, cohen_kappa_score
+from scipy.stats import ks_2samp
+import matplotlib.pyplot as plt
 
 import localConfig as cfg
+
+
 
 treeName = "bdttree"
 baseSigName = "T2DegStop_300_270"
@@ -38,7 +42,7 @@ bkgDatasets = [
 
               ]
 
-myFeatures = ["Jet1Pt", "Met", "Njet", "LepPt", "LepEta", "LepChg", "HT", "NbLoose"]
+myFeatures = ["LepPt", "LepEta", "LepChg", "Met", "Jet1Pt", "HT", "NbLoose", "Njet", "JetHBpt", "DrJetHBLep", "JetHBCSV"]
 inputBranches = list(myFeatures)
 inputBranches.append("XS")
 inputBranches.append("weight")
@@ -102,6 +106,11 @@ sigDataDev["sampleWeight"] = 1
 sigDataVal["sampleWeight"] = 1
 bkgDataDev["sampleWeight"] = 1
 bkgDataVal["sampleWeight"] = 1
+
+
+
+
+
 
 # Calculate event weights
 # The input files already have a branch called weight, which contains the per-event weights
@@ -167,8 +176,9 @@ scalerfile = 'scaler.sav'
 joblib.dump(scaler, scalerfile)
 
 
+
 compileArgs = {'loss': 'binary_crossentropy', 'optimizer': 'adam', 'metrics': ["accuracy"]}
-trainParams = {'epochs': 10, 'batch_size': 20, 'verbose': 1}
+trainParams = {'epochs': 25, 'batch_size': 20, 'verbose': 1}
 learning_rate = 0.001/5.0
 myAdam = Adam(lr=learning_rate)
 compileArgs['optimizer'] = myAdam
@@ -208,7 +218,7 @@ model = getDefinedClassifier(len(trainFeatures), 1, compileArgs)
 history = model.fit(XDev, YDev, validation_data=(XVal,YVal,weightVal), sample_weight=weightDev, **trainParams)
 print("Training took ", time.time()-start, " seconds")
 
-name = "myNN"
+name = "myNN2"
 model.save(name+".h5")
 model_json = model.to_json()
 with open(name + ".json", "w") as json_file:
@@ -317,7 +327,7 @@ import sys
 #########################################################
 
 # Let's repeat the above, but monitor the evolution of the loss function
-import matplotlib.pyplot as plt
+
 
 #history = model.fit(XDev, YDev, validation_data=(XVal,YVal,weightVal), sample_weight=weightDev, **trainParams)
 print(history.history.keys())
@@ -352,29 +362,38 @@ for x in fomEvo:
 print "FOM maximization: ", max_FOM , "with cut at: " , fomCut[fomEvo.index(max_FOM)]
 Eff = zip(bkgEff, sigEff)
 
+print "Kolmogorov-Smirnov test"
+km_value=ks_2samp((sig_dataDev["NN"].append(bkg_dataDev["NN"])),(sig_dataVal["NN"].append(bkg_dataVal["NN"])))
+print km_value
+
 print "Plotting"
 
+plt.figure(figsize=(7,6))
 plt.hist(sig_dataDev["NN"], 50, facecolor='blue', alpha=0.7, normed=1, weights=sig_dataDev["weight"])
 plt.hist(bkg_dataDev["NN"], 50, facecolor='red', alpha=0.7, normed=1, weights=bkg_dataDev["weight"])
 plt.hist(sig_dataVal["NN"], 50, color='blue', alpha=1, normed=1, weights=sig_dataVal["weight"], histtype="step")
 plt.hist(bkg_dataVal["NN"], 50, color='red', alpha=1, normed=1, weights=bkg_dataVal["weight"], histtype="step")
 plt.xlabel('NN output')
-plt.title("Cohen's kappa: {0}".format(cohen_kappa), fontsize=10)
-plt.suptitle("MVA overtraining check for classifier: NN", fontsize=13)
-plt.legend(['Signal (Test sample)', 'Background (Test sample)', 'Signal (Train sample)', 'Background (Train sample)'], loc='upper right')
-#plt.savefig('hist.png', bbox_inches='tight')
+#plt.title("Cohen's kappa: {0}".format(cohen_kappa), fontsize=10)
+plt.suptitle("MVA overtraining check for classifier: NN", fontsize=13, fontweight='bold')
+plt.title("Cohen's kappa: {0}\nKolmogorov Smirnov test: {1}".format(cohen_kappa, km_value[1]), fontsize=10)
+plt.legend(['Signal (Test sample)', 'Background (Test sample)', 'Signal (Train sample)', 'Background (Train sample)\nasdfgh'], loc='upper right')
+plt.savefig('hist2.png', bbox_inches='tight')
 plt.show()
 
+
 both_dataDev=bkg_dataDev.append(sig_dataDev)
+plt.figure(figsize=(7,6))
 plt.xlabel('NN output')
 plt.title("Number of Events")
 #plt.yscale('log', nonposy='clip')
 plt.legend(['Background + Signal (test sample)', 'Background (test sample)'], loc="upper left" )
 plt.hist(bkg_dataDev["NN"], 50, facecolor='red', weights=bkg_dataDev["weight"])
 plt.hist(both_dataDev["NN"], 50, color="blue", histtype="step", weights=both_dataDev["weight"])
-#plt.savefig('pred.png', bbox_inches='tight')
+plt.savefig('pred2.png', bbox_inches='tight')
 plt.show()
 
+plt.figure(figsize=(7,6))
 plt.subplots_adjust(hspace=0.5)
 plt.subplot(211)
 plt.plot(history.history['acc'])
@@ -392,9 +411,10 @@ plt.ylabel('loss')
 plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
-#plt.savefig('NN.png', papertype="a4")
+plt.savefig('NN2.png', papertype="a4")
 plt.show()
 
+plt.figure(figsize=(7,6))
 plt.subplots_adjust(hspace=0.5)
 plt.subplot(211)
 plt.plot(fomCut, fomEvo)
@@ -412,7 +432,7 @@ plt.title("Efficiency")
 plt.ylabel("Eff")
 plt.xlabel("ND")
 plt.legend(['Background', 'Signal'], loc='upper left')
-#plt.savefig('FOM.png', bbox_inches='tight')
+plt.savefig('FOM2.png', bbox_inches='tight')
 plt.show()
 
 
