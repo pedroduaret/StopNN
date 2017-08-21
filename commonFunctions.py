@@ -44,6 +44,7 @@ def StopDataLoader(path, features, selection="", treename="bdttree", suffix="", 
   sigDev = None
   sigVal = None
   for sigName in signalMap[signal]:
+    stopM = int(sigName[10:13])
     tmp = root_numpy.root2array(
                                 path + "/train/" + sigName + suffix + ".root",
                                 treename=treename,
@@ -54,8 +55,11 @@ def StopDataLoader(path, features, selection="", treename="bdttree", suffix="", 
       tmp = tmp[:int(len(tmp)*fraction)]
     if sigDev is None:
       sigDev = pandas.DataFrame(tmp)
+      sigDev["stopM"] = stopM
     else:
-      sigDev = sigDev.append(pandas.DataFrame(tmp), ignore_index=True)
+      tmp2 = pandas.DataFrame(tmp)
+      tmp2["stopM"] = stopM
+      sigDev = sigDev.append(tmp2, ignore_index=True)
 
     tmp = root_numpy.root2array(
                                 path + "/test/" + sigName + suffix + ".root",
@@ -67,8 +71,11 @@ def StopDataLoader(path, features, selection="", treename="bdttree", suffix="", 
       tmp = tmp[:int(len(tmp)*fraction)]
     if sigVal is None:
       sigVal = pandas.DataFrame(tmp)
+      sigVal["stopM"] = stopM
     else:
-      sigVal = sigVal.append(pandas.DataFrame(tmp), ignore_index=True)
+      tmp2 = pandas.DataFrame(tmp)
+      tmp2["stopM"] = stopM
+      sigVal = sigVal.append(tmp2, ignore_index=True)
 
   bkgDev = None
   bkgVal = None
@@ -107,6 +114,9 @@ def StopDataLoader(path, features, selection="", treename="bdttree", suffix="", 
   sigVal["sampleWeight"] = 1
   bkgDev["sampleWeight"] = 1
   bkgVal["sampleWeight"] = 1
+
+  bkgDev["stopM"] = -1
+  bkgVal["stopM"] = -1
 
   if fraction < 1.0:
     sigDev.weight = sigDev.weight/fraction
