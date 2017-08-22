@@ -2,30 +2,53 @@ import root_numpy
 import pandas
 
 signalMap = {
-              "DM30" : [],
-              "300_270" : ["T2DegStop_300_270"],
-            }
-bkgDatasets = [
-                "Wjets_70to100",
-                "Wjets_100to200",
-                "Wjets_200to400",
-                "Wjets_400to600",
-                "Wjets_600to800",
-                "Wjets_800to1200",
-                "Wjets_1200to2500",
-                "Wjets_2500toInf",
-                "TTJets_DiLepton",
-                "TTJets_SingleLeptonFromTbar",
-                "TTJets_SingleLeptonFromT",
-                "ZJetsToNuNu_HT100to200",
-                "ZJetsToNuNu_HT200to400",
-                "ZJetsToNuNu_HT400to600",
-                "ZJetsToNuNu_HT600to800",
-                "ZJetsToNuNu_HT800to1200",
-                "ZJetsToNuNu_HT1200to2500",
-                "ZJetsToNuNu_HT2500toInf"
-              ]
+    "DM30" : [
+        "T2DegStop_250_220",
+        "T2DegStop_275_245", 
+        "T2DegStop_300_270", 
+        "T2DegStop_325_295", 
+        "T2DegStop_350_320", 
+        "T2DegStop_375_345", 
+        "T2DegStop_400_370", 
+        "T2DegStop_425_395", 
+        "T2DegStop_450_420", 
+        "T2DegStop_475_445", 
+        "T2DegStop_500_470", 
+        "T2DegStop_525_495", 
+        "T2DegStop_550_520", 
+        "T2DegStop_575_545", 
+        "T2DegStop_600_570", 
+        "T2DegStop_625_595", 
+        "T2DegStop_650_620", 
+        "T2DegStop_675_645", 
+        "T2DegStop_700_670", 
+        "T2DegStop_725_695", 
+        "T2DegStop_750_720", 
+        "T2DegStop_775_745", 
+        "T2DegStop_800_770"],
+    "300_270" : ["T2DegStop_300_270"],
+    "550_520" : ["T2DegStop_550_520"]
+}
 
+bkgDatasets = [
+    "Wjets_70to100",
+    "Wjets_100to200",
+    "Wjets_200to400",
+    "Wjets_400to600",
+    "Wjets_600to800",
+    "Wjets_800to1200",
+    "Wjets_1200to2500",
+    "Wjets_2500toInf",
+    "TTJets_DiLepton",
+    "TTJets_SingleLeptonFromTbar",
+    "TTJets_SingleLeptonFromT",
+    "ZJetsToNuNu_HT100to200",
+    "ZJetsToNuNu_HT200to400",
+    "ZJetsToNuNu_HT400to600",
+    "ZJetsToNuNu_HT600to800",
+    "ZJetsToNuNu_HT800to1200",
+    "ZJetsToNuNu_HT1200to2500",
+    "ZJetsToNuNu_HT2500toInf"]
 
 def StopDataLoader(path, features, selection="", treename="bdttree", suffix="", signal="DM30", fraction=1.0):
   if signal not in signalMap:
