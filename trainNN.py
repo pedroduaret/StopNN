@@ -15,7 +15,7 @@ from sklearn.metrics import confusion_matrix, cohen_kappa_score
 import localConfig as cfg
 from commonFunctions import StopDataLoader
 
-myFeatures = ["Jet1Pt", "Met", "Njet", "LepPt", "LepEta", "LepChg", "HT", "NbLoose"]
+myFeatures = ["Jet1Pt", "Met", "mt", "LepPt", "LepEta", "LepChg", "HT", "NbLoose","Njet", "JetHBpt", "DrJetHBLep", "JetHBCSV"]
 inputBranches = list(myFeatures)
 inputBranches.append("XS")
 inputBranches.append("weight")
@@ -24,7 +24,7 @@ suffix = "_skimmed"
 luminosity = 35866
 
 print "Loading datasets..."
-dataDev, dataVal = StopDataLoader(cfg.loc, inputBranches, selection=preselection, suffix=suffix, signal="300_270")
+dataDev, dataVal = StopDataLoader(cfg.loc, inputBranches, selection=preselection, suffix=suffix, signal="DM30", test="550_520")
 #print dataDev.describe()
 #print dataVal.describe()
 data = dataDev.copy()
@@ -59,18 +59,17 @@ XVal = scaler.transform(XVal)
 scalerfile = 'scaler.sav'
 joblib.dump(scaler, scalerfile)
 
-
 compileArgs = {'loss': 'binary_crossentropy', 'optimizer': 'adam', 'metrics': ["accuracy"]}
-trainParams = {'epochs': 2, 'batch_size': 20, 'verbose': 1}
+trainParams = {'epochs': 25, 'batch_size': 20, 'verbose': 1}
 learning_rate = 0.001/5.0
 myAdam = Adam(lr=learning_rate)
 compileArgs['optimizer'] = myAdam
 
 def getDefinedClassifier(nIn, nOut, compileArgs):
   model = Sequential()
-  model.add(Dense(16, input_dim=nIn, kernel_initializer='he_normal', activation='relu'))
+  model.add(Dense(7, input_dim=nIn, kernel_initializer='he_normal', activation='relu'))
   #model.add(Dropout(0.2))
-  model.add(Dense(10, kernel_initializer='he_normal', activation='relu'))
+  #model.add(Dense(10, kernel_initializer='he_normal', activation='relu'))
   #model.add(Dropout(0.2))
   model.add(Dense(nOut, activation="sigmoid", kernel_initializer='glorot_normal'))
   model.compile(**compileArgs)
@@ -94,26 +93,33 @@ print type(XVal)
 print XVal.shape
 print XVal.dtype
 
+
+
 print("Starting the training")
 start = time.time()
+call = keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=1e-7, patience=5, verbose=1, mode='auto')
 model = getDefinedClassifier(len(trainFeatures), 1, compileArgs)
 #model = getSELUClassifier(len(trainFeatures), 1, compileArgs)
-history = model.fit(XDev, YDev, validation_data=(XVal,YVal,weightVal), sample_weight=weightDev, **trainParams)
+history = model.fit(XDev, YDev, validation_data=(XVal,YVal,weightVal), sample_weight=weightDev,callbacks=[call], **trainParams)
 print("Training took ", time.time()-start, " seconds")
 
-name = "myNN"
+# To save:
+name = "myNN_DM30"
 model.save(name+".h5")
-#model_json = model.to_json()
-#with open(name + ".json", "w") as json_file:
-#  json_file.write(model_json)
-#model.save_weights(name + ".h5")
+model_json = model.to_json()
+with open(name + ".json", "w") as json_file:
+  json_file.write(model_json)
+model.save_weights(name + ".h5")
 
-## To load:
-#from keras.models import model_from_json
-#with open('model.json', 'r') as json_file:
-#  loaded_model_json = json_file.read()
-#loaded_model = model_from_json(loaded_model_json)
-#loaded_model.load_weights("model.h5")
+# To load:
+'''
+from keras.models import model_from_json
+with open(name + '.json', 'r') as json_file:
+    loaded_model_json = json_file.read()
+model = model_from_json(loaded_model_json)
+model.load_weights(name+".h5")
+model.compile(loss = 'binary_crossentropy', optimizer = 'adam')
+'''
 
 print("Getting predictions")
 devPredict = model.predict(XDev)
@@ -259,6 +265,3 @@ for train, test in kfold.split(XDev, YDev):
   print("%s: %.2f%%" % (model.metrics_names[1], scores[1]*100))
   cvscores.append(scores[1] * 100)
 print("%.2f%% (+/- %.2f%%)" % (numpy.mean(cvscores), numpy.std(cvscores)))
-
-
-
