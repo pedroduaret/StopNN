@@ -159,6 +159,9 @@ tmpSig, tmpBkg = getYields(dataVal)
 sigYield, sigYieldUnc = tmpSig
 bkgYield, bkgYieldUnc = tmpBkg
 
+sigDataVal = dataVal[dataVal.category==1]
+bkgDataVal = dataVal[dataVal.category==0]
+
 print "Signal@Presel:", sigDataVal.weight.sum() * 35866 * 2
 print "Background@Presel:", bkgDataVal.weight.sum() * 35866 * 2
 print "Signal:", sigYield, "+-", sigYieldUnc
