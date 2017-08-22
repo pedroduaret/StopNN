@@ -11,151 +11,35 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, AlphaDropout
 from keras.optimizers import Adam
 from sklearn.metrics import confusion_matrix, cohen_kappa_score
-from scipy.stats import ks_2samp
-import matplotlib.pyplot as plt
 
 import localConfig as cfg
+from commonFunctions import StopDataLoader
 
-
-
-treeName = "bdttree"
-baseSigName = "T2DegStop_300_270"
-bkgDatasets = [
-                "Wjets_70to100",
-                "Wjets_100to200",
-                "Wjets_200to400",
-                "Wjets_400to600",
-                "Wjets_600to800",
-                "Wjets_800to1200",
-                "Wjets_1200to2500",
-                "Wjets_2500toInf",
-                "TTJets_DiLepton",
-                "TTJets_SingleLeptonFromTbar",
-                "TTJets_SingleLeptonFromT",
-                "ZJetsToNuNu_HT100to200",
-                "ZJetsToNuNu_HT200to400",
-                "ZJetsToNuNu_HT400to600",
-                "ZJetsToNuNu_HT600to800",
-                "ZJetsToNuNu_HT800to1200",
-                "ZJetsToNuNu_HT1200to2500",
-                "ZJetsToNuNu_HT2500toInf"
-
-              ]
-
-myFeatures = ["LepPt", "LepEta", "LepChg", "Met", "Jet1Pt", "HT", "NbLoose", "Njet", "JetHBpt", "DrJetHBLep", "JetHBCSV"]
+myFeatures = ["Jet1Pt", "Met", "Njet", "LepPt", "LepEta", "LepChg", "HT", "NbLoose"]
 inputBranches = list(myFeatures)
 inputBranches.append("XS")
 inputBranches.append("weight")
 preselection = "(DPhiJet1Jet2 < 2.5 || Jet2Pt < 60) && (Met > 280) && (HT > 200) && (isTight == 1) && (Jet1Pt > 110)"
 suffix = "_skimmed"
+luminosity = 35866
 
 print "Loading datasets..."
-sigDataDev = pandas.DataFrame(root_numpy.root2array(
-                                                    cfg.loc + "/train/" + baseSigName + suffix + ".root",
-                                                    treename=treeName,
-                                                    selection=preselection,
-                                                    branches=inputBranches
-                                                    ))
-sigDataVal = pandas.DataFrame(root_numpy.root2array(
-                                                    cfg.loc + "/test/" + baseSigName + suffix + ".root",
-                                                    treename=treeName,
-                                                    selection=preselection,
-                                                    branches=inputBranches
-                                                    ))
-bkgDataDev = None
-bkgDataVal = None
-for bkgName in bkgDatasets:
-  if bkgDataDev is None:
-    bkgDataDev = pandas.DataFrame(root_numpy.root2array(
-                                                        cfg.loc + "/train/" + bkgName + suffix + ".root",
-                                                        treename=treeName,
-                                                        selection=preselection,
-                                                        branches=inputBranches
-                                                        ))
-    bkgDataVal = pandas.DataFrame(root_numpy.root2array(
-                                                        cfg.loc + "/test/" + bkgName + suffix + ".root",
-                                                        treename=treeName,
-                                                        selection=preselection,
-                                                        branches=inputBranches
-                                                        ))
-  else:
-    bkgDataDev = bkgDataDev.append(
-                                   pandas.DataFrame(root_numpy.root2array(
-                                                                          cfg.loc + "/train/" + bkgName + suffix + ".root",
-                                                                          treename=treeName,
-                                                                          selection=preselection,
-                                                                          branches=inputBranches
-                                                                          )),
-                                   ignore_index=True
-                                   )
-    bkgDataVal = bkgDataVal.append(
-                                   pandas.DataFrame(root_numpy.root2array(
-                                                                          cfg.loc + "/test/" + bkgName + suffix + ".root",
-                                                                          treename=treeName,
-                                                                          selection=preselection,
-                                                                          branches=inputBranches
-                                                                          )),
-                                   ignore_index=True
-                                   )
-
-sigDataDev["category"] = 1
-sigDataVal["category"] = 1
-bkgDataDev["category"] = 0
-bkgDataVal["category"] = 0
-sigDataDev["sampleWeight"] = 1
-sigDataVal["sampleWeight"] = 1
-bkgDataDev["sampleWeight"] = 1
-bkgDataVal["sampleWeight"] = 1
-
-
-
-
-
-
-# Calculate event weights
-# The input files already have a branch called weight, which contains the per-event weights
-# These precomputed weights have all scale factors applied. If we desire to not use the scale factors
-# we should compute a new set of weights ourselves. Remember to repeat for all datasets.
-################### Add computation here if wanted #######################################################
-# After computing the weights, the total class has to be normalized.
-sigDataDev.sampleWeight = sigDataDev.weight/sigDataDev.weight.sum()
-sigDataVal.sampleWeight = sigDataVal.weight/sigDataVal.weight.sum()
-bkgDataDev.sampleWeight = bkgDataDev.weight/bkgDataDev.weight.sum()
-bkgDataVal.sampleWeight = bkgDataVal.weight/bkgDataVal.weight.sum()
-
-
-data = sigDataDev.copy()
-data = data.append(sigDataVal.copy(), ignore_index=True)
-data = data.append(bkgDataDev.copy(), ignore_index=True)
-data = data.append(bkgDataVal.copy(), ignore_index=True)
-print 'Datasets contain a total of', len(data), 'events:'
-print '  Signal:'
-print '    Development (train):', len(sigDataDev)
-print '    Validation (test):', len(sigDataVal)
-print '  Background:'
-print '    Development (train):', len(bkgDataDev)
-print '    Validation (test):', len(bkgDataVal)
+dataDev, dataVal = StopDataLoader(cfg.loc, inputBranches, selection=preselection, suffix=suffix, signal="300_270")
+#print dataDev.describe()
+#print dataVal.describe()
+data = dataDev.copy()
+data = data.append(dataVal.copy(), ignore_index=True)
+print 'Datasets contain a total of', len(data), '(', data.weight.sum()*luminosity, 'weighted) events:'
+print '  Development (train):', len(dataDev), '(', dataDev.weight.sum()*luminosity, 'weighted)'
+print '    Signal:', len(dataDev[dataDev.category == 1]), '(', dataDev[dataDev.category == 1].weight.sum()*luminosity, 'weighted)'
+print '    Background:', len(dataDev[dataDev.category == 0]), '(', dataDev[dataDev.category == 0].weight.sum()*luminosity, 'weighted)'
+print '  Validation (test):', len(dataVal), '(', dataVal.weight.sum()*luminosity, 'weighted)'
+print '    Signal:', len(dataVal[dataVal.category == 1]), '(', dataVal[dataVal.category == 1].weight.sum()*luminosity, 'weighted)'
+print '    Background:', len(dataVal[dataVal.category == 0]), '(', dataVal[dataVal.category == 0].weight.sum()*luminosity, 'weighted)'
 
 print 'Finding features of interest'
 trainFeatures = [var for var in data.columns if var in myFeatures]
 otherFeatures = [var for var in data.columns if var not in trainFeatures]
-
-print "Filtering the features of interest"
-tmpList = list(trainFeatures) # To create a real copy
-tmpList.append("category") # Add to tmpList any columns that really are needed, for whatever reason
-tmpList.append("weight")
-tmpList.append("sampleWeight")
-data = data[tmpList]
-
-dataDev = sigDataDev[tmpList].copy()
-dataDev = dataDev.append(bkgDataDev[tmpList].copy(), ignore_index=True)
-
-dataVal = sigDataVal[tmpList].copy()
-dataVal = dataVal.append(bkgDataVal[tmpList].copy(), ignore_index=True)
-
-print data.describe()
-print dataDev.describe()
-print dataVal.describe()
 
 ######################################
 
@@ -176,9 +60,8 @@ scalerfile = 'scaler.sav'
 joblib.dump(scaler, scalerfile)
 
 
-
 compileArgs = {'loss': 'binary_crossentropy', 'optimizer': 'adam', 'metrics': ["accuracy"]}
-trainParams = {'epochs': 25, 'batch_size': 20, 'verbose': 1}
+trainParams = {'epochs': 2, 'batch_size': 20, 'verbose': 1}
 learning_rate = 0.001/5.0
 myAdam = Adam(lr=learning_rate)
 compileArgs['optimizer'] = myAdam
@@ -218,12 +101,12 @@ model = getDefinedClassifier(len(trainFeatures), 1, compileArgs)
 history = model.fit(XDev, YDev, validation_data=(XVal,YVal,weightVal), sample_weight=weightDev, **trainParams)
 print("Training took ", time.time()-start, " seconds")
 
-name = "myNN2"
+name = "myNN"
 model.save(name+".h5")
-model_json = model.to_json()
-with open(name + ".json", "w") as json_file:
-  json_file.write(model_json)
-model.save_weights(name + ".h5")
+#model_json = model.to_json()
+#with open(name + ".json", "w") as json_file:
+#  json_file.write(model_json)
+#model.save_weights(name + ".h5")
 
 ## To load:
 #from keras.models import model_from_json
@@ -245,23 +128,11 @@ print ""
 print "Dev score:", scoreDev
 print "Val score:", scoreVal
 print confusion_matrix(YVal, valPredict.round())
-cohen_kappa=cohen_kappa_score(YVal, valPredict.round())
 print cohen_kappa_score(YVal, valPredict.round())
 
 
 print "Calculating FOM:"
 dataVal["NN"] = valPredict
-dataDev["NN"] = devPredict
-
-sig_dataValIdx=(dataVal.category==1)
-bkg_dataValIdx=(dataVal.category==0)
-sig_dataDevIdx=(dataVal.category==1)
-bkg_dataDevIdx=(dataVal.category==0)
-
-sig_dataVal=dataVal[sig_dataValIdx]
-bkg_dataVal=dataVal[bkg_dataValIdx]
-sig_dataDev=dataDev[sig_dataDevIdx]
-bkg_dataDev=dataDev[bkg_dataDevIdx]
 
 def getYields(dataVal, cut=0.5, luminosity=35866, splitFactor=2):
   selectedValIdx = (dataVal.NN>cut)
@@ -327,114 +198,44 @@ import sys
 #########################################################
 
 # Let's repeat the above, but monitor the evolution of the loss function
-
+import matplotlib.pyplot as plt
 
 #history = model.fit(XDev, YDev, validation_data=(XVal,YVal,weightVal), sample_weight=weightDev, **trainParams)
 print(history.history.keys())
 
-fomEvo = []
-fomCut = []
-
-bkgEff = []
-sigEff = []
-
-luminosity=35866
-sig_Init = sigDataVal.weight.sum() * luminosity * 2;
-bkg_Init = bkgDataVal.weight.sum() * luminosity * 2;
-
-for cut in np.arange(0.0, 0.9999999, 0.001):
-  sig, bkg = getYields(dataVal, cut=cut, luminosity=luminosity)
-  if sig[0] > 0 and bkg[0] > 0:
-    fom, fomUnc = FullFOM(sig, bkg)
-    fomEvo.append(fom)
-    fomCut.append(cut)
-    bkgEff.append(bkg[0]/bkg_Init)
-    sigEff.append(sig[0]/sig_Init)
-
-max_FOM=0
-
-print "Maximizing FOM"
-for x in fomEvo:
-    if x>max_FOM:
-        max_FOM=x
-
-
-print "FOM maximization: ", max_FOM , "with cut at: " , fomCut[fomEvo.index(max_FOM)]
-Eff = zip(bkgEff, sigEff)
-
-print "Kolmogorov-Smirnov test"
-km_value=ks_2samp((sig_dataDev["NN"].append(bkg_dataDev["NN"])),(sig_dataVal["NN"].append(bkg_dataVal["NN"])))
-print km_value
-
-print "Plotting"
-
-plt.figure(figsize=(7,6))
-plt.hist(sig_dataDev["NN"], 50, facecolor='blue', alpha=0.7, normed=1, weights=sig_dataDev["weight"])
-plt.hist(bkg_dataDev["NN"], 50, facecolor='red', alpha=0.7, normed=1, weights=bkg_dataDev["weight"])
-plt.hist(sig_dataVal["NN"], 50, color='blue', alpha=1, normed=1, weights=sig_dataVal["weight"], histtype="step")
-plt.hist(bkg_dataVal["NN"], 50, color='red', alpha=1, normed=1, weights=bkg_dataVal["weight"], histtype="step")
-plt.xlabel('NN output')
-#plt.title("Cohen's kappa: {0}".format(cohen_kappa), fontsize=10)
-plt.suptitle("MVA overtraining check for classifier: NN", fontsize=13, fontweight='bold')
-plt.title("Cohen's kappa: {0}\nKolmogorov Smirnov test: {1}".format(cohen_kappa, km_value[1]), fontsize=10)
-plt.legend(['Signal (Test sample)', 'Background (Test sample)', 'Signal (Train sample)', 'Background (Train sample)\nasdfgh'], loc='upper right')
-plt.savefig('hist2.png', bbox_inches='tight')
-plt.show()
-
-
-both_dataDev=bkg_dataDev.append(sig_dataDev)
-plt.figure(figsize=(7,6))
-plt.xlabel('NN output')
-plt.title("Number of Events")
-#plt.yscale('log', nonposy='clip')
-plt.legend(['Background + Signal (test sample)', 'Background (test sample)'], loc="upper left" )
-plt.hist(bkg_dataDev["NN"], 50, facecolor='red', weights=bkg_dataDev["weight"])
-plt.hist(both_dataDev["NN"], 50, color="blue", histtype="step", weights=both_dataDev["weight"])
-plt.savefig('pred2.png', bbox_inches='tight')
-plt.show()
-
-plt.figure(figsize=(7,6))
-plt.subplots_adjust(hspace=0.5)
-plt.subplot(211)
 plt.plot(history.history['acc'])
 plt.plot(history.history['val_acc'])
 plt.title('model accuracy')
 plt.ylabel('accuracy')
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
+plt.show()
 
-plt.subplot(212)
 plt.plot(history.history['loss'])
 plt.plot(history.history['val_loss'])
 plt.title('model loss')
 plt.ylabel('loss')
-plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
-plt.savefig('NN2.png', papertype="a4")
 plt.show()
 
-plt.figure(figsize=(7,6))
-plt.subplots_adjust(hspace=0.5)
-plt.subplot(211)
+fomEvo = []
+fomCut = []
+for cut in np.arange(0.0, 0.9999999, 0.001):
+  sig, bkg = getYields(dataVal, cut=cut)
+  if sig[0] > 0 and bkg[0] > 0:
+    fom, fomUnc = FullFOM(sig, bkg)
+    fomEvo.append(fom)
+    fomCut.append(cut)
+
 plt.plot(fomCut, fomEvo)
 plt.title("FOM")
 plt.ylabel("FOM")
 plt.xlabel("ND")
-plt.legend(["Max. FOM: {0}".format(max_FOM)], loc='upper left')
-
-
-plt.subplot(212)
-plt.semilogy(fomCut, Eff)
-plt.axvspan(fomCut[fomEvo.index(max_FOM)], 1, facecolor='#2ca02c', alpha=0.3)
-#plt.axvline(x=fomCut[fomEvo.index(max_FOM)], ymin=0, ymax=1)
-plt.title("Efficiency")
-plt.ylabel("Eff")
-plt.xlabel("ND")
-plt.legend(['Background', 'Signal'], loc='upper left')
-plt.savefig('FOM2.png', bbox_inches='tight')
+plt.legend(['test'], loc='upper left')
 plt.show()
 
+#print fomEvo
 
 sys.exit("Done!")
 
