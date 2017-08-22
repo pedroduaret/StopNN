@@ -230,12 +230,38 @@ plt.show()
 
 fomEvo = []
 fomCut = []
+
+bkgEff = []
+sigEff = []
+
+sig_Init = dataVal[dataVal.category == 1].weight.sum() * 35866 * 2
+bkg_Init = dataVal[dataVal.category == 0].weight.sum() * 35866 * 2
+
 for cut in np.arange(0.0, 0.9999999, 0.001):
   sig, bkg = getYields(dataVal, cut=cut)
   if sig[0] > 0 and bkg[0] > 0:
     fom, fomUnc = FullFOM(sig, bkg)
     fomEvo.append(fom)
     fomCut.append(cut)
+    
+max_FOM=0
+
+print "Maximizing FOM"
+for k in fomEvo:
+  if k>max_FOM:
+    max_FOM=k
+
+Eff = zip(bkgEff, sigEff)
+
+km_value=ks_2samp((sig_dataDev["NN"].append(bkg_dataDev["NN"])),(sig_dataVal["NN"].append(bkg_dataVal["NN"])))
+                 
+print "Layers:", y
+print "Neurons:", x
+print "Cohen Kappa score:", cohen_kappa
+print "Maximized FOM:", max_FOM
+print "FOM Cut:", fomCut[fomEvo.index(max_FOM)]
+print "KS test statistic:", km_value[0]
+print "KS test p-value:", km_value[1]
 
 plt.plot(fomCut, fomEvo)
 plt.title("FOM")
