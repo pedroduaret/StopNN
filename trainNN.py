@@ -1,66 +1,16 @@
-#!/usr/bin/env python
-
-import root_numpy
-import numpy as np
-import pandas
-import keras
+from keras.optimizers import Adam
 import time
-from sklearn.externals import joblib
-from sklearn.preprocessing import StandardScaler
+import keras
+import pandas
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, AlphaDropout
-from keras.optimizers import Adam
 from sklearn.metrics import confusion_matrix, cohen_kappa_score
+#from scipy.stats import ks_2samp
 
-import localConfig as cfg
-from commonFunctions import StopDataLoader
-
-myFeatures = ["Jet1Pt", "Met", "mt", "LepPt", "LepEta", "LepChg", "HT", "NbLoose","Njet", "JetHBpt", "DrJetHBLep", "JetHBCSV"]
-inputBranches = list(myFeatures)
-inputBranches.append("XS")
-inputBranches.append("weight")
-preselection = "(DPhiJet1Jet2 < 2.5 || Jet2Pt < 60) && (Met > 280) && (HT > 200) && (isTight == 1) && (Jet1Pt > 110)"
-suffix = "_skimmed"
-luminosity = 35866
-
-print "Loading datasets..."
-dataDev, dataVal = StopDataLoader(cfg.loc, inputBranches, selection=preselection, suffix=suffix, signal="DM30", test="550_520")
-#print dataDev.describe()
-#print dataVal.describe()
-data = dataDev.copy()
-data = data.append(dataVal.copy(), ignore_index=True)
-print 'Datasets contain a total of', len(data), '(', data.weight.sum()*luminosity, 'weighted) events:'
-print '  Development (train):', len(dataDev), '(', dataDev.weight.sum()*luminosity, 'weighted)'
-print '    Signal:', len(dataDev[dataDev.category == 1]), '(', dataDev[dataDev.category == 1].weight.sum()*luminosity, 'weighted)'
-print '    Background:', len(dataDev[dataDev.category == 0]), '(', dataDev[dataDev.category == 0].weight.sum()*luminosity, 'weighted)'
-print '  Validation (test):', len(dataVal), '(', dataVal.weight.sum()*luminosity, 'weighted)'
-print '    Signal:', len(dataVal[dataVal.category == 1]), '(', dataVal[dataVal.category == 1].weight.sum()*luminosity, 'weighted)'
-print '    Background:', len(dataVal[dataVal.category == 0]), '(', dataVal[dataVal.category == 0].weight.sum()*luminosity, 'weighted)'
-
-print 'Finding features of interest'
-trainFeatures = [var for var in data.columns if var in myFeatures]
-otherFeatures = [var for var in data.columns if var not in trainFeatures]
-
-######################################
-
-print "Preparing the data for the NN"
-XDev = dataDev.ix[:,0:len(trainFeatures)]
-XVal = dataVal.ix[:,0:len(trainFeatures)]
-YDev = np.ravel(dataDev.category)
-YVal = np.ravel(dataVal.category)
-weightDev = np.ravel(dataDev.sampleWeight)
-weightVal = np.ravel(dataVal.sampleWeight)
-
-print("Fitting the scaler and scaling the input variables")
-scaler = StandardScaler().fit(XDev)
-XDev = scaler.transform(XDev)
-XVal = scaler.transform(XVal)
-
-scalerfile = 'scaler.sav'
-joblib.dump(scaler, scalerfile)
+from prepareDATA import * 
 
 compileArgs = {'loss': 'binary_crossentropy', 'optimizer': 'adam', 'metrics': ["accuracy"]}
-trainParams = {'epochs': 25, 'batch_size': 20, 'verbose': 1}
+trainParams = {'epochs': 2, 'batch_size': 20, 'verbose': 1}
 learning_rate = 0.001/5.0
 myAdam = Adam(lr=learning_rate)
 compileArgs['optimizer'] = myAdam
@@ -206,6 +156,10 @@ import sys
 
 #########################################################
 
+fomEvo = []
+fomCut = []
+
+bkgEff = []
 # Let's repeat the above, but monitor the evolution of the loss function
 import matplotlib.pyplot as plt
 
@@ -228,10 +182,6 @@ plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
 plt.show()
 
-fomEvo = []
-fomCut = []
-
-bkgEff = []
 sigEff = []
 
 sig_Init = dataVal[dataVal.category == 1].weight.sum() * 35866 * 2
@@ -253,15 +203,15 @@ for k in fomEvo:
 
 Eff = zip(bkgEff, sigEff)
 
-km_value=ks_2samp((sig_dataDev["NN"].append(bkg_dataDev["NN"])),(sig_dataVal["NN"].append(bkg_dataVal["NN"])))
-                 
-print "Layers:", y
-print "Neurons:", x
-print "Cohen Kappa score:", cohen_kappa
+#km_value=ks_2samp((sig_dataDev["NN"].append(bkg_dataDev["NN"])),(sig_dataVal["NN"].append(bkg_dataVal["NN"])))
+
+#print "Layers:", y
+#print "Neurons:", x
+#print "Cohen Kappa score:", cohen_kappa
 print "Maximized FOM:", max_FOM
 print "FOM Cut:", fomCut[fomEvo.index(max_FOM)]
-print "KS test statistic:", km_value[0]
-print "KS test p-value:", km_value[1]
+#print "KS test statistic:", km_value[0]
+#print "KS test p-value:", km_value[1]
 
 plt.plot(fomCut, fomEvo)
 plt.title("FOM")
