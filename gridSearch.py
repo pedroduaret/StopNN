@@ -1,3 +1,6 @@
+'''
+Code inspired from: https://machinelearningmastery.com/grid-search-hyperparameters-deep-learning-models-python-keras/
+'''
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 import numpy
@@ -29,12 +32,14 @@ def myClassifier(nIn=len(trainFeatures), nOut=1, compileArgs=compileArgs, layers
     return model
 
 
-model = KerasClassifier(build_fn=myClassifier, epochs = 10, batch_size = 20, verbose = 1)
+model = KerasClassifier(build_fn=myClassifier, verbose = 1)
 
 neurons = [10,12,14,16]
 layers = [1,2,3]
+batch_size = [10, 20, 40, 60, 80, 100]
+epochs = [10, 50, 100]
 #layers = [1,2,3,4,5]
-param_grid = dict(neurons=neurons, layers=layers)
+param_grid = dict(neurons=neurons, layers=layers, epochs=epochs, batch_size=batch_size)
 grid = GridSearchCV(estimator = model, param_grid = param_grid, n_jobs=-1) #n_jobs = -1 -> Total number of CPU/GPU cores
 print("Starting the training")
 start = time.time()

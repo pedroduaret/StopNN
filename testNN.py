@@ -18,10 +18,9 @@ from commonFunctions import StopDataLoader, FOM1, FOM2, FullFOM, getYields
 import sys
 
 from keras.models import model_from_json
-
 from prepareDATA import *
 
-model_name = "myNN_DM30"
+model_name = "myNN_N13_L2_E25_DevDM30_Val550_520"
 
 print "Loading Model ..."
 with open(model_name+'.json', 'r') as json_file:
