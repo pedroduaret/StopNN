@@ -7,5 +7,7 @@ keras-tf/*
 *.png
 *.json
 *.pyc
+*.txt
+*.sav
 scaler.sav
 localConfig.py

@@ -15,26 +15,30 @@ inputBranches.append("weight")
 preselection = "(DPhiJet1Jet2 < 2.5 || Jet2Pt < 60) && (Met > 280) && (HT > 200) && (isTight == 1) && (Jet1Pt > 110)"
 suffix = "_skimmed"
 luminosity = 35866
+number_of_events_print = 0
+test_point = "550_520"
+train_DM = "DM30"
 
 print "Loading datasets..."
-dataDev, dataVal = StopDataLoader(cfg.loc, inputBranches, selection=preselection, suffix=suffix, signal="DM30", test="550_520")
+dataDev, dataVal = StopDataLoader(cfg.loc, inputBranches, selection=preselection, suffix=suffix, signal=train_DM, test=test_point)
 #print dataDev.describe()
 #print dataVal.describe()
+
+if number_of_events_print == 1:
+    print 'Datasets contain a total of', len(data), '(', data.weight.sum()*luminosity, 'weighted) events:'
+    print '  Development (train):', len(dataDev), '(', dataDev.weight.sum()*luminosity, 'weighted)'
+    print '    Signal:', len(dataDev[dataDev.category == 1]), '(', dataDev[dataDev.category == 1].weight.sum()*luminosity, 'weighted)'
+    print '    Background:', len(dataDev[dataDev.category == 0]), '(', dataDev[dataDev.category == 0].weight.sum()*luminosity, 'weighted)'
+    print '  Validation (test):', len(dataVal), '(', dataVal.weight.sum()*luminosity, 'weighted)'
+    print '    Signal:', len(dataVal[dataVal.category == 1]), '(', dataVal[dataVal.category == 1].weight.sum()*luminosity, 'weighted)'
+    print '    Background:', len(dataVal[dataVal.category == 0]), '(', dataVal[dataVal.category == 0].weight.sum()*luminosity, 'weighted)'
+
 data = dataDev.copy()
 data = data.append(dataVal.copy(), ignore_index=True)
-print 'Datasets contain a total of', len(data), '(', data.weight.sum()*luminosity, 'weighted) events:'
-print '  Development (train):', len(dataDev), '(', dataDev.weight.sum()*luminosity, 'weighted)'
-print '    Signal:', len(dataDev[dataDev.category == 1]), '(', dataDev[dataDev.category == 1].weight.sum()*luminosity, 'weighted)'
-print '    Background:', len(dataDev[dataDev.category == 0]), '(', dataDev[dataDev.category == 0].weight.sum()*luminosity, 'weighted)'
-print '  Validation (test):', len(dataVal), '(', dataVal.weight.sum()*luminosity, 'weighted)'
-print '    Signal:', len(dataVal[dataVal.category == 1]), '(', dataVal[dataVal.category == 1].weight.sum()*luminosity, 'weighted)'
-print '    Background:', len(dataVal[dataVal.category == 0]), '(', dataVal[dataVal.category == 0].weight.sum()*luminosity, 'weighted)'
 
 print 'Finding features of interest'
 trainFeatures = [var for var in data.columns if var in myFeatures]
 otherFeatures = [var for var in data.columns if var not in trainFeatures]
-
-######################################
 
 print "Preparing the data for the NN"
 XDev = dataDev.ix[:,0:len(trainFeatures)]
@@ -49,7 +53,7 @@ scaler = StandardScaler().fit(XDev)
 XDev = scaler.transform(XDev)
 XVal = scaler.transform(XVal)
 
-scalerfile = 'scaler.sav'
+scalerfile = 'scaler_'+train_DM+'.sav'
 joblib.dump(scaler, scalerfile)
 
 print "DATA is ready!"

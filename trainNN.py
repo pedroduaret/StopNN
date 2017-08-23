@@ -1,3 +1,5 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 from keras.optimizers import Adam
 import time
 import keras
@@ -7,34 +9,50 @@ from keras.layers import Dense, Dropout, AlphaDropout
 from sklearn.metrics import confusion_matrix, cohen_kappa_score
 #from scipy.stats import ks_2samp
 
-from prepareDATA import * 
+from prepareDATA import *
+
+n_neurons = 10
+n_layers = 2
+n_epochs = 10
 
 compileArgs = {'loss': 'binary_crossentropy', 'optimizer': 'adam', 'metrics': ["accuracy"]}
-trainParams = {'epochs': 2, 'batch_size': 20, 'verbose': 1}
+trainParams = {'epochs': n_epochs, 'batch_size': 20, 'verbose': 1}
 learning_rate = 0.001/5.0
 myAdam = Adam(lr=learning_rate)
 compileArgs['optimizer'] = myAdam
 
-def getDefinedClassifier(nIn, nOut, compileArgs):
-  model = Sequential()
-  model.add(Dense(7, input_dim=nIn, kernel_initializer='he_normal', activation='relu'))
-  #model.add(Dropout(0.2))
-  #model.add(Dense(10, kernel_initializer='he_normal', activation='relu'))
-  #model.add(Dropout(0.2))
-  model.add(Dense(nOut, activation="sigmoid", kernel_initializer='glorot_normal'))
-  model.compile(**compileArgs)
-  return model
+def FOM1(sIn, bIn):
+  s, sErr = sIn
+  b, bErr = bIn
+  fom = s / (b**0.5)
+  fomErr = ((sErr / (b**0.5))**2+(bErr*s / (2*(b)**(1.5)) )**2)**0.5
+  return (fom, fomErr)
 
-def getSELUClassifier(nIn, nOut, compileArgs):
+def FOM2(sIn, bIn):
+  s, sErr = sIn
+  b, bErr = bIn
+  fom = s / ((s+b)**0.5)
+  fomErr = ((sErr*(2*b + s)/(2*(b + s)**1.5))**2  +  (bErr * s / (2*(b + s)**1.5))**2)**0.5
+  return (fom, fomErr)
+
+def FullFOM(sIn, bIn, fValue=0.2):
+  from math import log
+  s, sErr = sIn
+  b, bErr = bIn
+  fomErr = 0.0 # Add the computation of the uncertainty later
+  fomA = 2*(s+b)*log(((s+b)*(b + (fValue*b)**2))/(b**2 + (s + b) * (fValue*b)**2))
+  fomB = log(1 + (s*b*b*fValue*fValue)/(b*(b+(fValue*b)**2)))/(fValue**2)
+  fom = (fomA - fomB)**0.5
+  return (fom, fomErr)
+
+print "Opening file"
+f = open("DATA_"+test_point+'.txt','w')
+
+def getDefinedClassifier(nIn, nOut, compileArgs, neurons, layers):
   model = Sequential()
-  model.add(Dense(16, input_dim=nIn, kernel_initializer='he_normal', activation='selu'))
-  model.add(AlphaDropout(0.2))
-  model.add(Dense(32, kernel_initializer='he_normal', activation='selu'))
-  model.add(AlphaDropout(0.2))
-  model.add(Dense(32, kernel_initializer='he_normal', activation='selu'))
-  model.add(AlphaDropout(0.2))
-  model.add(Dense(32, kernel_initializer='he_normal', activation='selu'))
-  model.add(AlphaDropout(0.2))
+  model.add(Dense(nIn, input_dim=nIn, kernel_initializer='he_normal', activation='relu'))
+  for i in range(0,layers):
+      model.add(Dense(neurons, kernel_initializer='he_normal', activation='relu'))
   model.add(Dense(nOut, activation="sigmoid", kernel_initializer='glorot_normal'))
   model.compile(**compileArgs)
   return model
@@ -43,12 +61,10 @@ print type(XVal)
 print XVal.shape
 print XVal.dtype
 
-
-
 print("Starting the training")
 start = time.time()
 call = keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=1e-7, patience=5, verbose=1, mode='auto')
-model = getDefinedClassifier(len(trainFeatures), 1, compileArgs)
+model = getDefinedClassifier(len( trainFeatures), 1, compileArgs, n_neurons, n_layers)
 #model = getSELUClassifier(len(trainFeatures), 1, compileArgs)
 history = model.fit(XDev, YDev, validation_data=(XVal,YVal,weightVal), sample_weight=weightDev,callbacks=[call], **trainParams)
 print("Training took ", time.time()-start, " seconds")
@@ -123,30 +139,6 @@ print "Background@Presel:", bkgDataVal.weight.sum() * 35866 * 2
 print "Signal:", sigYield, "+-", sigYieldUnc
 print "Background:", bkgYield, "+-", bkgYieldUnc
 
-def FOM1(sIn, bIn):
-  s, sErr = sIn
-  b, bErr = bIn
-  fom = s / (b**0.5)
-  fomErr = ((sErr / (b**0.5))**2+(bErr*s / (2*(b)**(1.5)) )**2)**0.5
-  return (fom, fomErr)
-
-def FOM2(sIn, bIn):
-  s, sErr = sIn
-  b, bErr = bIn
-  fom = s / ((s+b)**0.5)
-  fomErr = ((sErr*(2*b + s)/(2*(b + s)**1.5))**2  +  (bErr * s / (2*(b + s)**1.5))**2)**0.5
-  return (fom, fomErr)
-
-def FullFOM(sIn, bIn, fValue=0.2):
-  from math import log
-  s, sErr = sIn
-  b, bErr = bIn
-  fomErr = 0.0 # Add the computation of the uncertainty later
-  fomA = 2*(s+b)*log(((s+b)*(b + (fValue*b)**2))/(b**2 + (s + b) * (fValue*b)**2))
-  fomB = log(1 + (s*b*b*fValue*fValue)/(b*(b+(fValue*b)**2)))/(fValue**2)
-  fom = (fomA - fomB)**0.5
-  return (fom, fomErr)
-
 print "Basic FOM (s/SQRT(b)):", FOM1((sigYield, sigYieldUnc), (bkgYield, bkgYieldUnc))
 print "Basic FOM (s/SQRT(s+b)):", FOM2((sigYield, sigYieldUnc), (bkgYield, bkgYieldUnc))
 print "Full FOM:", FullFOM((sigYield, sigYieldUnc), (bkgYield, bkgYieldUnc))
@@ -193,7 +185,7 @@ for cut in np.arange(0.0, 0.9999999, 0.001):
     fom, fomUnc = FullFOM(sig, bkg)
     fomEvo.append(fom)
     fomCut.append(cut)
-    
+
 max_FOM=0
 
 print "Maximizing FOM"
@@ -220,6 +212,20 @@ plt.xlabel("ND")
 plt.legend(['test'], loc='upper left')
 plt.show()
 
+
+selectedVal = dataVal[dataVal.NN>fomCut[fomEvo.index(max_FOM)]]
+selectedSig = selectedVal[selectedVal.category == 1]
+selectedBkg = selectedVal[selectedVal.category == 0]
+sigYield = selectedSig.weight.sum()
+bkgYield = selectedBkg.weight.sum()
+sigYield = sigYield * luminosity * 2          #The factor 2 comes from the splitting
+bkgYield = bkgYield * luminosity * 2
+
+print fomCut[fomEvo.index(max_FOM)]
+print "Number of selected Signal Events:", len(selectedSig)
+print 'Number of selected Background Events:', len(selectedBkg)
+print "Sig Yield", sigYield
+print "Bkg Yield", bkgYield
 #print fomEvo
 
 sys.exit("Done!")

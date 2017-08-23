@@ -1,3 +1,5 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 import numpy
 from sklearn.model_selection import GridSearchCV
 from keras.wrappers.scikit_learn import KerasClassifier
@@ -9,12 +11,7 @@ from keras.constraints import maxnorm
 
 from prepareDATA import *
 
-'''
-XDev = trainNN.XDev 
-YDev = trainNN.YDev 
-'''
 compileArgs = {'loss': 'binary_crossentropy', 'optimizer': 'adam', 'metrics': ["accuracy"]}
-trainParams = {'epochs': 2, 'batch_size': 10, 'verbose': 1}
 
 # Fix seed for reproducibility
 seed = 42
@@ -32,10 +29,10 @@ def myClassifier(nIn=len(trainFeatures), nOut=1, compileArgs=compileArgs, layers
     return model
 
 
-model = KerasClassifier(build_fn=myClassifier, epochs = 2, batch_size = 20, verbose = 1)
+model = KerasClassifier(build_fn=myClassifier, epochs = 10, batch_size = 20, verbose = 1)
 
-neurons = [10, 12, 14]
-layers = [1,2]
+neurons = [10,12,14,16]
+layers = [1,2,3]
 #layers = [1,2,3,4,5]
 param_grid = dict(neurons=neurons, layers=layers)
 grid = GridSearchCV(estimator = model, param_grid = param_grid, n_jobs=-1) #n_jobs = -1 -> Total number of CPU/GPU cores
