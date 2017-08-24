@@ -14,9 +14,11 @@ import localConfig as cfg
 from prepareDATA import *
 
 
-n_neurons = 10
+n_neurons = 14
 n_layers = 1
-n_epochs = 10
+n_epochs = 5
+batch_size = 20
+learning_rate = 0.001/5.0
 name = "myNN_N"+str(n_neurons)+"_L"+str(n_layers)+"_E"+str(n_epochs)+"_Dev"+train_DM+"_Val"+test_point
 
 filepath = cfg.lgbk+name
@@ -24,8 +26,7 @@ os.mkdir(filepath)
 os.chdir(filepath)
 
 compileArgs = {'loss': 'binary_crossentropy', 'optimizer': 'adam', 'metrics': ["accuracy"]}
-trainParams = {'epochs': n_epochs, 'batch_size': 20, 'verbose': 1}
-learning_rate = 0.001/5.0
+trainParams = {'epochs': n_epochs, 'batch_size': batch_size, 'verbose': 1}
 myAdam = Adam(lr=learning_rate)
 compileArgs['optimizer'] = myAdam
 

@@ -12,6 +12,7 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, AlphaDropout
 from keras.wrappers.scikit_learn import KerasClassifier
 from keras.constraints import maxnorm
+from keras.optimizers import Adam
 from prepareDATA import *
 import localConfig as cfg
 import datetime 
@@ -25,12 +26,14 @@ seed = 42
 numpy.random.seed(seed)
 
 # Tune the Number of Neurons in the Hidden Layer 
-def myClassifier(nIn=len(trainFeatures), nOut=1, compileArgs=compileArgs, layers=1, neurons=1):
+def myClassifier(nIn=len(trainFeatures), nOut=1, compileArgs=compileArgs, layers=1, neurons=1, learn_rate=0.001):
     model = Sequential()
     model.add(Dense(neurons, input_dim=nIn, kernel_initializer='he_normal', activation='relu'))
     for i in range(0,layers-1):
         model.add(Dense(neurons, kernel_initializer='he_normal', activation='relu'))
     model.add(Dense(nOut, activation="sigmoid", kernel_initializer='glorot_normal'))
+    optimizer = Adam(lr=learn_rate)
+    compileArgs['optimizer'] = optimizer
     model.compile(**compileArgs)
     print("\nTraining with %i layers and %i neurons\n" % (layers, neurons))
     return model
@@ -40,16 +43,15 @@ model = KerasClassifier(build_fn=myClassifier,batch_size=20, verbose = 1)
 
 #Hyperparameters
 neurons = [8,10,12,14]
-layers = [1,2]
-#batch_size = [10, 20, 40, 60, 80, 100]
+layers = [1,2,3]
 epochs = [5, 10, 15]
-learn_rate = [0.001, 0.01, 0.1, 0.2, 0.3]
-momentum = [0.0, 0.2, 0.4, 0.6, 0.8, 0.9]
+batch_size = [5, 10, 20]
+learn_rate = [0.001, 0.01, 0.1]
 
 now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M")
 filename="gS:"+now+".txt"
 
-param_grid = dict(neurons=neurons, layers=layers, epochs=epochs)#, batch_size=batch_size)
+param_grid = dict(neurons=neurons, layers=layers, epochs=epochs, batch_size=batch_size, learn_rate=learn_rate)
 grid = GridSearchCV(estimator = model, param_grid = param_grid, n_jobs=3) #n_jobs = -1 -> Total number of CPU/GPU cores
 print("Starting the training")
 start = time.time()
