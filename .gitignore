@@ -11,3 +11,6 @@ keras-tf/*
 *.sav
 scaler.sav
 localConfig.py
+mvFiles.sh
+init.sh
+LogBook/*

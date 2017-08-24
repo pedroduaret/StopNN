@@ -13,10 +13,15 @@ from commonFunctions import getYields, FullFOM
 import localConfig as cfg
 from prepareDATA import *
 
-n_neurons = 13
-n_layers = 2
-n_epochs = 25
+
+n_neurons = 10
+n_layers = 1
+n_epochs = 10
 name = "myNN_N"+str(n_neurons)+"_L"+str(n_layers)+"_E"+str(n_epochs)+"_Dev"+train_DM+"_Val"+test_point
+
+filepath = cfg.lgbk+name
+os.mkdir(filepath)
+os.chdir(filepath)
 
 compileArgs = {'loss': 'binary_crossentropy', 'optimizer': 'adam', 'metrics': ["accuracy"]}
 trainParams = {'epochs': n_epochs, 'batch_size': 20, 'verbose': 1}
@@ -26,8 +31,8 @@ compileArgs['optimizer'] = myAdam
 
 def getDefinedClassifier(nIn, nOut, compileArgs, neurons, layers):
   model = Sequential()
-  model.add(Dense(nIn, input_dim=nIn, kernel_initializer='he_normal', activation='relu'))
-  for i in range(0,layers):
+  model.add(Dense(neurons, input_dim=nIn, kernel_initializer='he_normal', activation='relu'))
+  for i in range(0,layers-1):
       model.add(Dense(neurons, kernel_initializer='he_normal', activation='relu'))
   model.add(Dense(nOut, activation="sigmoid", kernel_initializer='glorot_normal'))
   model.compile(**compileArgs)

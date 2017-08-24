@@ -8,6 +8,8 @@ from sklearn.externals import joblib
 import localConfig as cfg
 from commonFunctions import StopDataLoader
 
+fraction = 1
+
 myFeatures = ["Jet1Pt", "Met", "mt", "LepPt", "LepEta", "LepChg", "HT", "NbLoose","Njet", "JetHBpt", "DrJetHBLep", "JetHBCSV"]
 inputBranches = list(myFeatures)
 inputBranches.append("XS")
@@ -20,7 +22,7 @@ test_point = "550_520"
 train_DM = "DM30"
 
 print "Loading datasets..."
-dataDev, dataVal = StopDataLoader(cfg.loc, inputBranches, selection=preselection, suffix=suffix, signal=train_DM, test=test_point, fraction=0.3)
+dataDev, dataVal = StopDataLoader(cfg.loc, inputBranches, selection=preselection, suffix=suffix, signal=train_DM, test=test_point, fraction=fraction)
 #print dataDev.describe()
 #print dataVal.describe()
 '''

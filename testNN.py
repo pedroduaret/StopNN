@@ -20,7 +20,10 @@ import sys
 from keras.models import model_from_json
 from prepareDATA import *
 
-model_name = "myNN_N13_L2_E25_DevDM30_Val550_520"
+model_name = "myNN_N14_L1_E10_DevDM30_Val550_520"
+
+filepath = cfg.lgbk+model_name
+os.chdir(filepath)
 
 print "Loading Model ..."
 with open(model_name+'.json', 'r') as json_file:
@@ -125,7 +128,7 @@ plt.hist(bkg_dataVal["NN"], 50, color='red', alpha=1, normed=1, weights=bkg_data
 plt.xlabel('NN output')
 plt.suptitle("MVA overtraining check for classifier: NN", fontsize=13, fontweight='bold')
 plt.title("Cohen's kappa: {0}\nKolmogorov Smirnov test: {1}".format(cohen_kappa, km_value[1]), fontsize=10)
-plt.legend(['Signal (Test sample)', 'Background (Test sample)', 'Signal (Train sample)', 'Background (Train sample)\nasdfgh'], loc='upper right')
+plt.legend(['Signal (Test sample)', 'Background (Test sample)', 'Signal (Train sample)', 'Background (Train sample)'], loc='upper right')
 plt.savefig('hist_'+model_name+'.png', bbox_inches='tight')
 plt.show()
 
