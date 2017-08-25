@@ -1,6 +1,6 @@
 #!/usr/bin/env python      
 
 #path to .root datasets
-loc = "/home/diogo/LIP/DATA/"
+loc = "/home/pedroduaret/Desktop/LIP/StopNN/"
 #path to logbook
-lgbk = "/home/diogo/LIP/StopNN/LogBook/"
+lgbk = "/home/pedroduaret/Desktop/LIP/StopNN/LogBook/"
