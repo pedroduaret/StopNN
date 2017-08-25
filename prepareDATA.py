@@ -8,7 +8,7 @@ from sklearn.externals import joblib
 import localConfig as cfg
 from commonFunctions import StopDataLoader
 
-fraction = 0.1
+fraction = 0.5
 
 myFeatures = ["Jet1Pt", "Met", "mt", "LepPt", "LepEta", "LepChg", "HT", "NbLoose","Njet", "JetHBpt", "DrJetHBLep", "JetHBCSV"]
 inputBranches = list(myFeatures)

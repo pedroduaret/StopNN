@@ -15,11 +15,11 @@ from prepareDATA import *
 
 
 n_neurons = 14
-n_layers = 1
-n_epochs = 5
-batch_size = 20
+n_layers = 2
+n_epochs = 25
+batch_size = 5
 learning_rate = 0.001/5.0
-name = "myNN_N"+str(n_neurons)+"_L"+str(n_layers)+"_E"+str(n_epochs)+"_Dev"+train_DM+"_Val"+test_point
+name = "myNN_N"+str(n_neurons)+"_L"+str(n_layers)+"_E"+str(n_epochs)+"B"+str(batch_size)+"Lr"+str(learning_rate)+"_Dev"+train_DM+"_Val"+test_point
 
 filepath = cfg.lgbk+name
 os.mkdir(filepath)

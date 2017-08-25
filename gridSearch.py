@@ -42,17 +42,17 @@ def myClassifier(nIn=len(trainFeatures), nOut=1, compileArgs=compileArgs, layers
 model = KerasClassifier(build_fn=myClassifier,batch_size=20, verbose = 1)
 
 #Hyperparameters
-neurons = [8,10,12,14]
+neurons = [10,12,14]
 layers = [1,2,3]
-epochs = [5, 10, 15]
-batch_size = [5, 10, 20]
-learn_rate = [0.001, 0.01, 0.1]
+epochs = [15]
+batch_size = [5]
+learn_rate = [0.1]
 
 now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M")
 filename="gS:"+now+".txt"
 
 param_grid = dict(neurons=neurons, layers=layers, epochs=epochs, batch_size=batch_size, learn_rate=learn_rate)
-grid = GridSearchCV(estimator = model, param_grid = param_grid, n_jobs=3) #n_jobs = -1 -> Total number of CPU/GPU cores
+grid = GridSearchCV(estimator = model, param_grid = param_grid, n_jobs=-1) #n_jobs = -1 -> Total number of CPU/GPU cores
 print("Starting the training")
 start = time.time()
 grid_result = grid.fit(XDev,YDev)
