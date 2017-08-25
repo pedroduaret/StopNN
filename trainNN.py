@@ -1,236 +1,57 @@
-#!/usr/bin/env python
-
-import root_numpy
-import numpy as np
-import pandas
-import keras
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+from keras.optimizers import Adam
 import time
-from sklearn.externals import joblib
-from sklearn.preprocessing import StandardScaler
+import keras
+import pandas
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, AlphaDropout
-from keras.optimizers import Adam
 from sklearn.metrics import confusion_matrix, cohen_kappa_score
-from scipy.stats import ks_2samp
 import matplotlib.pyplot as plt
-
+from commonFunctions import getYields, FullFOM
+#from scipy.stats import ks_2samp
 import localConfig as cfg
+from prepareDATA import *
 
 
+n_neurons = 14
+n_layers = 2
+n_epochs = 25
+batch_size = 5
+learning_rate = 0.001/5.0
+name = "myNN_N"+str(n_neurons)+"_L"+str(n_layers)+"_E"+str(n_epochs)+"B"+str(batch_size)+"Lr"+str(learning_rate)+"_Dev"+train_DM+"_Val"+test_point
 
-treeName = "bdttree"
-baseSigName = "T2DegStop_300_270"
-bkgDatasets = [
-                "Wjets_70to100",
-                "Wjets_100to200",
-                "Wjets_200to400",
-                "Wjets_400to600",
-                "Wjets_600to800",
-                "Wjets_800to1200",
-                "Wjets_1200to2500",
-                "Wjets_2500toInf",
-                "TTJets_DiLepton",
-                "TTJets_SingleLeptonFromTbar",
-                "TTJets_SingleLeptonFromT",
-                "ZJetsToNuNu_HT100to200",
-                "ZJetsToNuNu_HT200to400",
-                "ZJetsToNuNu_HT400to600",
-                "ZJetsToNuNu_HT600to800",
-                "ZJetsToNuNu_HT800to1200",
-                "ZJetsToNuNu_HT1200to2500",
-                "ZJetsToNuNu_HT2500toInf"
-
-              ]
-
-myFeatures = ["LepPt", "LepEta", "LepChg", "Met", "Jet1Pt", "HT", "NbLoose", "Njet", "JetHBpt", "DrJetHBLep", "JetHBCSV"]
-inputBranches = list(myFeatures)
-inputBranches.append("XS")
-inputBranches.append("weight")
-preselection = "(DPhiJet1Jet2 < 2.5 || Jet2Pt < 60) && (Met > 280) && (HT > 200) && (isTight == 1) && (Jet1Pt > 110)"
-suffix = "_skimmed"
-
-print "Loading datasets..."
-sigDataDev = pandas.DataFrame(root_numpy.root2array(
-                                                    cfg.loc + "/train/" + baseSigName + suffix + ".root",
-                                                    treename=treeName,
-                                                    selection=preselection,
-                                                    branches=inputBranches
-                                                    ))
-sigDataVal = pandas.DataFrame(root_numpy.root2array(
-                                                    cfg.loc + "/test/" + baseSigName + suffix + ".root",
-                                                    treename=treeName,
-                                                    selection=preselection,
-                                                    branches=inputBranches
-                                                    ))
-bkgDataDev = None
-bkgDataVal = None
-for bkgName in bkgDatasets:
-  if bkgDataDev is None:
-    bkgDataDev = pandas.DataFrame(root_numpy.root2array(
-                                                        cfg.loc + "/train/" + bkgName + suffix + ".root",
-                                                        treename=treeName,
-                                                        selection=preselection,
-                                                        branches=inputBranches
-                                                        ))
-    bkgDataVal = pandas.DataFrame(root_numpy.root2array(
-                                                        cfg.loc + "/test/" + bkgName + suffix + ".root",
-                                                        treename=treeName,
-                                                        selection=preselection,
-                                                        branches=inputBranches
-                                                        ))
-  else:
-    bkgDataDev = bkgDataDev.append(
-                                   pandas.DataFrame(root_numpy.root2array(
-                                                                          cfg.loc + "/train/" + bkgName + suffix + ".root",
-                                                                          treename=treeName,
-                                                                          selection=preselection,
-                                                                          branches=inputBranches
-                                                                          )),
-                                   ignore_index=True
-                                   )
-    bkgDataVal = bkgDataVal.append(
-                                   pandas.DataFrame(root_numpy.root2array(
-                                                                          cfg.loc + "/test/" + bkgName + suffix + ".root",
-                                                                          treename=treeName,
-                                                                          selection=preselection,
-                                                                          branches=inputBranches
-                                                                          )),
-                                   ignore_index=True
-                                   )
-
-sigDataDev["category"] = 1
-sigDataVal["category"] = 1
-bkgDataDev["category"] = 0
-bkgDataVal["category"] = 0
-sigDataDev["sampleWeight"] = 1
-sigDataVal["sampleWeight"] = 1
-bkgDataDev["sampleWeight"] = 1
-bkgDataVal["sampleWeight"] = 1
-
-
-
-
-
-
-# Calculate event weights
-# The input files already have a branch called weight, which contains the per-event weights
-# These precomputed weights have all scale factors applied. If we desire to not use the scale factors
-# we should compute a new set of weights ourselves. Remember to repeat for all datasets.
-################### Add computation here if wanted #######################################################
-# After computing the weights, the total class has to be normalized.
-sigDataDev.sampleWeight = sigDataDev.weight/sigDataDev.weight.sum()
-sigDataVal.sampleWeight = sigDataVal.weight/sigDataVal.weight.sum()
-bkgDataDev.sampleWeight = bkgDataDev.weight/bkgDataDev.weight.sum()
-bkgDataVal.sampleWeight = bkgDataVal.weight/bkgDataVal.weight.sum()
-
-
-data = sigDataDev.copy()
-data = data.append(sigDataVal.copy(), ignore_index=True)
-data = data.append(bkgDataDev.copy(), ignore_index=True)
-data = data.append(bkgDataVal.copy(), ignore_index=True)
-print 'Datasets contain a total of', len(data), 'events:'
-print '  Signal:'
-print '    Development (train):', len(sigDataDev)
-print '    Validation (test):', len(sigDataVal)
-print '  Background:'
-print '    Development (train):', len(bkgDataDev)
-print '    Validation (test):', len(bkgDataVal)
-
-print 'Finding features of interest'
-trainFeatures = [var for var in data.columns if var in myFeatures]
-otherFeatures = [var for var in data.columns if var not in trainFeatures]
-
-print "Filtering the features of interest"
-tmpList = list(trainFeatures) # To create a real copy
-tmpList.append("category") # Add to tmpList any columns that really are needed, for whatever reason
-tmpList.append("weight")
-tmpList.append("sampleWeight")
-data = data[tmpList]
-
-dataDev = sigDataDev[tmpList].copy()
-dataDev = dataDev.append(bkgDataDev[tmpList].copy(), ignore_index=True)
-
-dataVal = sigDataVal[tmpList].copy()
-dataVal = dataVal.append(bkgDataVal[tmpList].copy(), ignore_index=True)
-
-print data.describe()
-print dataDev.describe()
-print dataVal.describe()
-
-######################################
-
-print "Preparing the data for the NN"
-XDev = dataDev.ix[:,0:len(trainFeatures)]
-XVal = dataVal.ix[:,0:len(trainFeatures)]
-YDev = np.ravel(dataDev.category)
-YVal = np.ravel(dataVal.category)
-weightDev = np.ravel(dataDev.sampleWeight)
-weightVal = np.ravel(dataVal.sampleWeight)
-
-print("Fitting the scaler and scaling the input variables")
-scaler = StandardScaler().fit(XDev)
-XDev = scaler.transform(XDev)
-XVal = scaler.transform(XVal)
-
-scalerfile = 'scaler.sav'
-joblib.dump(scaler, scalerfile)
-
-
+filepath = cfg.lgbk+name
+os.mkdir(filepath)
+os.chdir(filepath)
 
 compileArgs = {'loss': 'binary_crossentropy', 'optimizer': 'adam', 'metrics': ["accuracy"]}
-trainParams = {'epochs': 25, 'batch_size': 20, 'verbose': 1}
-learning_rate = 0.001/5.0
+trainParams = {'epochs': n_epochs, 'batch_size': batch_size, 'verbose': 1}
 myAdam = Adam(lr=learning_rate)
 compileArgs['optimizer'] = myAdam
 
-def getDefinedClassifier(nIn, nOut, compileArgs):
+def getDefinedClassifier(nIn, nOut, compileArgs, neurons, layers):
   model = Sequential()
-  model.add(Dense(16, input_dim=nIn, kernel_initializer='he_normal', activation='relu'))
-  #model.add(Dropout(0.2))
-  model.add(Dense(10, kernel_initializer='he_normal', activation='relu'))
-  #model.add(Dropout(0.2))
+  model.add(Dense(neurons, input_dim=nIn, kernel_initializer='he_normal', activation='relu'))
+  for i in range(0,layers-1):
+      model.add(Dense(neurons, kernel_initializer='he_normal', activation='relu'))
   model.add(Dense(nOut, activation="sigmoid", kernel_initializer='glorot_normal'))
   model.compile(**compileArgs)
   return model
-
-def getSELUClassifier(nIn, nOut, compileArgs):
-  model = Sequential()
-  model.add(Dense(16, input_dim=nIn, kernel_initializer='he_normal', activation='selu'))
-  model.add(AlphaDropout(0.2))
-  model.add(Dense(32, kernel_initializer='he_normal', activation='selu'))
-  model.add(AlphaDropout(0.2))
-  model.add(Dense(32, kernel_initializer='he_normal', activation='selu'))
-  model.add(AlphaDropout(0.2))
-  model.add(Dense(32, kernel_initializer='he_normal', activation='selu'))
-  model.add(AlphaDropout(0.2))
-  model.add(Dense(nOut, activation="sigmoid", kernel_initializer='glorot_normal'))
-  model.compile(**compileArgs)
-  return model
-
-print type(XVal)
-print XVal.shape
-print XVal.dtype
 
 print("Starting the training")
 start = time.time()
-model = getDefinedClassifier(len(trainFeatures), 1, compileArgs)
-#model = getSELUClassifier(len(trainFeatures), 1, compileArgs)
-history = model.fit(XDev, YDev, validation_data=(XVal,YVal,weightVal), sample_weight=weightDev, **trainParams)
+call = keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=1e-7, patience=5, verbose=1, mode='auto')
+model = getDefinedClassifier(len( trainFeatures), 1, compileArgs, n_neurons, n_layers)
+history = model.fit(XDev, YDev, validation_data=(XVal,YVal,weightVal), sample_weight=weightDev,callbacks=[call], **trainParams)
 print("Training took ", time.time()-start, " seconds")
 
-name = "myNN2"
+# To save:
 model.save(name+".h5")
 model_json = model.to_json()
 with open(name + ".json", "w") as json_file:
   json_file.write(model_json)
 model.save_weights(name + ".h5")
-
-## To load:
-#from keras.models import model_from_json
-#with open('model.json', 'r') as json_file:
-#  loaded_model_json = json_file.read()
-#loaded_model = model_from_json(loaded_model_json)
-#loaded_model.load_weights("model.h5")
 
 print("Getting predictions")
 devPredict = model.predict(XDev)
@@ -240,158 +61,53 @@ print("Getting scores")
 
 scoreDev = model.evaluate(XDev, YDev, sample_weight=weightDev, verbose = 1)
 scoreVal = model.evaluate(XVal, YVal, sample_weight=weightVal, verbose = 1)
-print ""
-
-print "Dev score:", scoreDev
-print "Val score:", scoreVal
-print confusion_matrix(YVal, valPredict.round())
-cohen_kappa=cohen_kappa_score(YVal, valPredict.round())
-print cohen_kappa_score(YVal, valPredict.round())
 
 
 print "Calculating FOM:"
 dataVal["NN"] = valPredict
-dataDev["NN"] = devPredict
-
-sig_dataValIdx=(dataVal.category==1)
-bkg_dataValIdx=(dataVal.category==0)
-sig_dataDevIdx=(dataVal.category==1)
-bkg_dataDevIdx=(dataVal.category==0)
-
-sig_dataVal=dataVal[sig_dataValIdx]
-bkg_dataVal=dataVal[bkg_dataValIdx]
-sig_dataDev=dataDev[sig_dataDevIdx]
-bkg_dataDev=dataDev[bkg_dataDevIdx]
-
-def getYields(dataVal, cut=0.5, luminosity=35866, splitFactor=2):
-  selectedValIdx = (dataVal.NN>cut)
-  selectedVal = dataVal[selectedValIdx]
-
-  selectedSigIdx = (selectedVal.category == 1)
-  selectedBkgIdx = (selectedVal.category == 0)
-  selectedSig = selectedVal[selectedSigIdx]
-  selectedBkg = selectedVal[selectedBkgIdx]
-
-  sigYield = selectedSig.weight.sum()
-  sigYieldUnc = np.sqrt(np.sum(np.square(selectedSig.weight)))
-  bkgYield = selectedBkg.weight.sum()
-  bkgYieldUnc = np.sqrt(np.sum(np.square(selectedBkg.weight)))
-
-  sigYield = sigYield * luminosity * splitFactor # The factor 2 comes from the splitting
-  sigYieldUnc = sigYieldUnc * luminosity * splitFactor
-  bkgYield = bkgYield * luminosity * splitFactor
-  bkgYieldUnc = bkgYieldUnc * luminosity * splitFactor
-
-  return ((sigYield, sigYieldUnc), (bkgYield, bkgYieldUnc))
 
 tmpSig, tmpBkg = getYields(dataVal)
 sigYield, sigYieldUnc = tmpSig
 bkgYield, bkgYieldUnc = tmpBkg
+
+sigDataVal = dataVal[dataVal.category==1]
+bkgDataVal = dataVal[dataVal.category==0]
+
+fomEvo = []
+fomCut = []
+
+for cut in np.arange(0.0, 0.9999999, 0.001):
+  sig, bkg = getYields(dataVal, cut=cut)
+  if sig[0] > 0 and bkg[0] > 0:
+    fom, fomUnc = FullFOM(sig, bkg)
+    fomEvo.append(fom)
+    fomCut.append(cut)
+
+max_FOM=0
+
+print "Maximizing FOM"
+for k in fomEvo:
+  if k>max_FOM:
+    max_FOM=k
 
 print "Signal@Presel:", sigDataVal.weight.sum() * 35866 * 2
 print "Background@Presel:", bkgDataVal.weight.sum() * 35866 * 2
 print "Signal:", sigYield, "+-", sigYieldUnc
 print "Background:", bkgYield, "+-", bkgYieldUnc
 
-def FOM1(sIn, bIn):
-  s, sErr = sIn
-  b, bErr = bIn
-  fom = s / (b**0.5)
-  fomErr = ((sErr / (b**0.5))**2+(bErr*s / (2*(b)**(1.5)) )**2)**0.5
-  return (fom, fomErr)
-
-def FOM2(sIn, bIn):
-  s, sErr = sIn
-  b, bErr = bIn
-  fom = s / ((s+b)**0.5)
-  fomErr = ((sErr*(2*b + s)/(2*(b + s)**1.5))**2  +  (bErr * s / (2*(b + s)**1.5))**2)**0.5
-  return (fom, fomErr)
-
-def FullFOM(sIn, bIn, fValue=0.2):
-  from math import log
-  s, sErr = sIn
-  b, bErr = bIn
-  fomErr = 0.0 # Add the computation of the uncertainty later
-  fomA = 2*(s+b)*log(((s+b)*(b + (fValue*b)**2))/(b**2 + (s + b) * (fValue*b)**2))
-  fomB = log(1 + (s*b*b*fValue*fValue)/(b*(b+(fValue*b)**2)))/(fValue**2)
-  fom = (fomA - fomB)**0.5
-  return (fom, fomErr)
-
-print "Basic FOM (s/SQRT(b)):", FOM1((sigYield, sigYieldUnc), (bkgYield, bkgYieldUnc))
-print "Basic FOM (s/SQRT(s+b)):", FOM2((sigYield, sigYieldUnc), (bkgYield, bkgYieldUnc))
-print "Full FOM:", FullFOM((sigYield, sigYieldUnc), (bkgYield, bkgYieldUnc))
+print "Maximized FOM:", max_FOM
+print "FOM Cut:", fomCut[fomEvo.index(max_FOM)]
 
 import sys
 #sys.exit("Done!")
 
 #########################################################
 
+
 # Let's repeat the above, but monitor the evolution of the loss function
 
 
 #history = model.fit(XDev, YDev, validation_data=(XVal,YVal,weightVal), sample_weight=weightDev, **trainParams)
-print(history.history.keys())
-
-fomEvo = []
-fomCut = []
-
-bkgEff = []
-sigEff = []
-
-luminosity=35866
-sig_Init = sigDataVal.weight.sum() * luminosity * 2;
-bkg_Init = bkgDataVal.weight.sum() * luminosity * 2;
-
-for cut in np.arange(0.0, 0.9999999, 0.001):
-  sig, bkg = getYields(dataVal, cut=cut, luminosity=luminosity)
-  if sig[0] > 0 and bkg[0] > 0:
-    fom, fomUnc = FullFOM(sig, bkg)
-    fomEvo.append(fom)
-    fomCut.append(cut)
-    bkgEff.append(bkg[0]/bkg_Init)
-    sigEff.append(sig[0]/sig_Init)
-
-max_FOM=0
-
-print "Maximizing FOM"
-for x in fomEvo:
-    if x>max_FOM:
-        max_FOM=x
-
-
-print "FOM maximization: ", max_FOM , "with cut at: " , fomCut[fomEvo.index(max_FOM)]
-Eff = zip(bkgEff, sigEff)
-
-print "Kolmogorov-Smirnov test"
-km_value=ks_2samp((sig_dataDev["NN"].append(bkg_dataDev["NN"])),(sig_dataVal["NN"].append(bkg_dataVal["NN"])))
-print km_value
-
-print "Plotting"
-
-plt.figure(figsize=(7,6))
-plt.hist(sig_dataDev["NN"], 50, facecolor='blue', alpha=0.7, normed=1, weights=sig_dataDev["weight"])
-plt.hist(bkg_dataDev["NN"], 50, facecolor='red', alpha=0.7, normed=1, weights=bkg_dataDev["weight"])
-plt.hist(sig_dataVal["NN"], 50, color='blue', alpha=1, normed=1, weights=sig_dataVal["weight"], histtype="step")
-plt.hist(bkg_dataVal["NN"], 50, color='red', alpha=1, normed=1, weights=bkg_dataVal["weight"], histtype="step")
-plt.xlabel('NN output')
-#plt.title("Cohen's kappa: {0}".format(cohen_kappa), fontsize=10)
-plt.suptitle("MVA overtraining check for classifier: NN", fontsize=13, fontweight='bold')
-plt.title("Cohen's kappa: {0}\nKolmogorov Smirnov test: {1}".format(cohen_kappa, km_value[1]), fontsize=10)
-plt.legend(['Signal (Test sample)', 'Background (Test sample)', 'Signal (Train sample)', 'Background (Train sample)\nasdfgh'], loc='upper right')
-plt.savefig('hist2.png', bbox_inches='tight')
-plt.show()
-
-
-both_dataDev=bkg_dataDev.append(sig_dataDev)
-plt.figure(figsize=(7,6))
-plt.xlabel('NN output')
-plt.title("Number of Events")
-#plt.yscale('log', nonposy='clip')
-plt.legend(['Background + Signal (test sample)', 'Background (test sample)'], loc="upper left" )
-plt.hist(bkg_dataDev["NN"], 50, facecolor='red', weights=bkg_dataDev["weight"])
-plt.hist(both_dataDev["NN"], 50, color="blue", histtype="step", weights=both_dataDev["weight"])
-plt.savefig('pred2.png', bbox_inches='tight')
-plt.show()
 
 plt.figure(figsize=(7,6))
 plt.subplots_adjust(hspace=0.5)
@@ -411,50 +127,7 @@ plt.ylabel('loss')
 plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
-plt.savefig('NN2.png', papertype="a4")
-plt.show()
-
-plt.figure(figsize=(7,6))
-plt.subplots_adjust(hspace=0.5)
-plt.subplot(211)
-plt.plot(fomCut, fomEvo)
-plt.title("FOM")
-plt.ylabel("FOM")
-plt.xlabel("ND")
-plt.legend(["Max. FOM: {0}".format(max_FOM)], loc='upper left')
-
-
-plt.subplot(212)
-plt.semilogy(fomCut, Eff)
-plt.axvspan(fomCut[fomEvo.index(max_FOM)], 1, facecolor='#2ca02c', alpha=0.3)
-#plt.axvline(x=fomCut[fomEvo.index(max_FOM)], ymin=0, ymax=1)
-plt.title("Efficiency")
-plt.ylabel("Eff")
-plt.xlabel("ND")
-plt.legend(['Background', 'Signal'], loc='upper left')
-plt.savefig('FOM2.png', bbox_inches='tight')
-plt.show()
-
+plt.savefig(name+'.png')
+#plt.savefig('NN2_'+str(y)+''+str(x)+''+test_point+"_"+str(max_FOM)+'.png')
 
 sys.exit("Done!")
-
-#########################################################
-
-print "Attempting KFold"
-
-from sklearn.model_selection import StratifiedKFold
-
-seed = 42
-np.random.seed(seed)
-kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=seed)
-cvscores = []
-for train, test in kfold.split(XDev, YDev):
-  model = getDefinedClassifier(len(trainFeatures), 1, compileArgs)
-  model.fit(XDev[train], YDev[train], validation_data=(XDev[test],YDev[test],weightDev[test]), sample_weight=weightDev[train], **trainParams)
-  scores = model.evaluate(XDev[test], YDev[test], sample_weight=weightDev[test], verbose=1)
-  print("%s: %.2f%%" % (model.metrics_names[1], scores[1]*100))
-  cvscores.append(scores[1] * 100)
-print("%.2f%% (+/- %.2f%%)" % (numpy.mean(cvscores), numpy.std(cvscores)))
-
-
-
